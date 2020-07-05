@@ -2,23 +2,15 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
 
-const configFile = "config"
-
-var aquareaTimeout time.Duration
-var mqttKeepalive time.Duration
-var poolInterval time.Duration
-
-var shiesuahruefutohkun string
-var lastChecksum [16]byte
-var logts int64
+const configFile = "config.json"
 
 type configType struct {
 	AquareaServiceCloudURL      string
@@ -27,11 +19,11 @@ type configType struct {
 	AquareaServiceCloudPassword string
 	AquateaTimeout              int
 	MqttServer                  string
-	MqttPort                    string
+	MqttPort                    int
 	MqttLogin                   string
 	MqttPass                    string
 	MqttClientID                string
-	MqttKeepalive               int
+	MqttKeepalive               string
 	PoolInterval                int
 	LogSecOffset                int64
 }
@@ -40,7 +32,14 @@ var aqDevices map[string]enduser
 
 func readConfig() configType {
 	var config configType
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+
+	data, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(data, &config)
+	if err != nil {
 		log.Fatal(err)
 	}
 	return config
@@ -81,26 +80,27 @@ type extractedData struct {
 	DailyWaterHeaterRunTime           string
 }
 
-var client http.Client
-var config configType
-
 func main() {
+	config := readConfig()
+
+	dataChannel := make(chan extractedData)
+	logChannel := make(chan aquareaLog)
+
+	go mqttHandler(config, dataChannel, logChannel)
+
 	aqDevices = make(map[string]enduser)
-
-	config = readConfig()
-	aquareaTimeout = time.Second * time.Duration(config.AquateaTimeout)
-	mqttKeepalive = time.Second * time.Duration(config.MqttKeepalive)
-	poolInterval = time.Second * time.Duration(config.PoolInterval)
-
+	var aquareaInstance aquarea
+	aquareaInstance.config = config
+	aquareaTimeout := time.Second * time.Duration(config.AquateaTimeout)
+	aquareaInstance.poolInterval = time.Second * time.Duration(config.PoolInterval)
 	cookieJar, _ := cookiejar.New(nil)
-
-	client = http.Client{
+	aquareaInstance.client = http.Client{
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 		Jar:       cookieJar,
 		Timeout:   aquareaTimeout,
 	}
-	MC, MT := makeMQTTConn()
+
 	for {
-		getAQData(client, MC, MT)
+		aquareaInstance.getAQData()
 	}
 }
