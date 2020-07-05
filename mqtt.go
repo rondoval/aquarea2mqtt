@@ -15,7 +15,7 @@ type aquareaMQTT struct {
 	mqttClient mqtt.Client
 }
 
-func mqttHandler(config configType, dataChannel chan extractedData, logChannel chan aquareaLog) {
+func mqttHandler(config configType, dataChannel chan aquareaDeviceStatus, logChannel chan aquareaLog) {
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -69,16 +69,13 @@ func handleMSGfromMQTT(mclient mqtt.Client, msg mqtt.Message) {
 		if Operation == "Zone1SetpointTemperature" {
 			i, err := strconv.ParseFloat(string(msg.Payload()), 32)
 			log.Printf("i=%v, type: %T\n err: %s", i, i, err)
-			str := makeChangeHeatingTemperatureJSON(DeviceID, 1, int(i))
-			log.Printf("\n %s \n ", str)
-			//			setUserOption(client, DeviceID, str)
-
+			//makeChangeHeatingTemperatureJSON(DeviceID, 1, int(i))
 		}
 	}
 	log.Printf("* [%s] %s\n", msg.Topic(), string(msg.Payload()))
 }
 
-func (am *aquareaMQTT) publishStates(dataToPublish extractedData) {
+func (am *aquareaMQTT) publishStates(dataToPublish aquareaDeviceStatus) {
 	//TODO why this way? marshal/unmarhal/iterate...
 	jsonData, err := json.Marshal(dataToPublish)
 	if err != nil {
@@ -106,8 +103,8 @@ func (am *aquareaMQTT) publishStates(dataToPublish extractedData) {
 }
 
 func (am *aquareaMQTT) publishLog(aqLog aquareaLog) {
-	TSS := fmt.Sprintf("%d", aqLog.TS)
-	for key, value := range aqLog.LD {
+	TSS := fmt.Sprintf("%d", aqLog.timestamp)
+	for key, value := range aqLog.logData {
 		TOP := "aquarea/log/" + fmt.Sprintf("%d", key)
 		fmt.Println("Publikuje do ", TOP, "warosc", value)
 		value = strings.TrimSpace(value)

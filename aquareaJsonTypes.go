@@ -1,14 +1,14 @@
 package main
 
-type endUsersList struct {
-	ZoomMap            int       `json:"zoomMap"`
-	ErrorCode          int       `json:"errorCode"`
-	Endusers           []enduser `json:"endusers"`
-	LongitudeCenterMap string    `json:"longitudeCenterMap"`
-	Size               int       `json:"size"`
-	LatitudeCenterMap  string    `json:"latitudeCenterMap"`
+type endUsersListJSON struct {
+	ZoomMap            int           `json:"zoomMap"`
+	ErrorCode          int           `json:"errorCode"`
+	Endusers           []endUserJSON `json:"endusers"`
+	LongitudeCenterMap string        `json:"longitudeCenterMap"`
+	Size               int           `json:"size"`
+	LatitudeCenterMap  string        `json:"latitudeCenterMap"`
 }
-type enduser struct {
+type endUserJSON struct {
 	Address    string      `json:"address"`
 	CompanyID  string      `json:"companyId"`
 	Connection string      `json:"connection"`
@@ -26,7 +26,7 @@ type enduser struct {
 	Power      string      `json:"power"`
 }
 
-type aquareaStatusResponse struct {
+type aquareaStatusResponseJSON struct {
 	ErrorCode      int `json:"errorCode"`
 	StatusDataInfo struct {
 		FunctionStatusText005 struct {
@@ -181,7 +181,7 @@ type aquareaStatusResponse struct {
 	} `json:"statusBackgroundDataInfo"`
 }
 
-type logResponse struct {
+type logResponseJSON struct {
 	ErrorCode int `json:"errorCode"`
 	Message   []struct {
 		ErrorMessage string `json:"errorMessage"`
@@ -189,7 +189,7 @@ type logResponse struct {
 	} `json:"message"`
 }
 
-type aqLogData struct {
+type aquareaLogDataJSON struct {
 	ErrorHistory []struct {
 		ErrorCode string `json:"errorCode"`
 		ErrorDate int64  `json:"errorDate"`
@@ -200,24 +200,24 @@ type aqLogData struct {
 	HistoryNo       string `json:"historyNo"`
 }
 
-type setParam struct {
-	Status []spStatus `json:"status"`
+type setParamJSON struct {
+	Status []spStatusJSON `json:"status"`
 }
-type zoneStatus struct {
+type zoneStatusJSON struct {
 	ZoneID  int `json:"zoneId"`
 	HeatSet int `json:"heatSet"`
 }
-type spStatus struct {
-	DeviceGUID string       `json:"deviceGuid"`
-	ZoneStatus []zoneStatus `json:"zoneStatus"`
+type spStatusJSON struct {
+	DeviceGUID string           `json:"deviceGuid"`
+	ZoneStatus []zoneStatusJSON `json:"zoneStatus"`
 }
 
-type aquareaServiceCloudSSOReponse struct {
+type aquareaServiceCloudSSOReponseJSON struct {
 	SsoKey    string `json:"ssoKey"`
 	ErrorCode int    `json:"errorCode"`
 }
 
-type getLoginStruct struct {
+type getLoginJSON struct {
 	AgreementStatus struct {
 		Contract      bool `json:"contract"`
 		CookiePolicy  bool `json:"cookiePolicy"`
