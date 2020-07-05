@@ -94,7 +94,7 @@ func main() {
 	aquareaTimeout := time.Second * time.Duration(config.AquateaTimeout)
 	aquareaInstance.poolInterval = time.Second * time.Duration(config.PoolInterval)
 	cookieJar, _ := cookiejar.New(nil)
-	aquareaInstance.client = http.Client{
+	aquareaInstance.httpClient = http.Client{
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 		Jar:       cookieJar,
 		Timeout:   aquareaTimeout,
