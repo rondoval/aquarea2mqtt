@@ -14,7 +14,7 @@ type aquareaMQTT struct {
 	mqttClient mqtt.Client
 }
 
-func mqttHandler(config configType, dataChannel chan map[string]string, logChannel chan map[string]string) {
+func mqttHandler(config configType, dataChannel chan map[string]string, commandChannel chan map[string]string) {
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -27,9 +27,7 @@ func mqttHandler(config configType, dataChannel chan map[string]string, logChann
 	for {
 		select {
 		case dataToPublish := <-dataChannel:
-			mqttInstance.publishStates(dataToPublish)
-		case aquareaLog := <-logChannel:
-			mqttInstance.publishLog(aquareaLog)
+			mqttInstance.publish(dataToPublish)
 		}
 	}
 }
@@ -59,7 +57,7 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 }
 
 func handleMSGfromMQTT(mclient mqtt.Client, msg mqtt.Message) {
-	//TODO more generic one needed, send data to a channel
+	//TODO more generic one needed, send data to a channel - commandChannel
 	s := strings.Split(msg.Topic(), "/")
 	if len(s) > 3 {
 		DeviceID := s[1]
@@ -74,27 +72,18 @@ func handleMSGfromMQTT(mclient mqtt.Client, msg mqtt.Message) {
 	log.Printf("* [%s] %s\n", msg.Topic(), string(msg.Payload()))
 }
 
-func (am *aquareaMQTT) publishStates(dataToPublish map[string]string) {
-	for key, value := range dataToPublish {
-		topic := fmt.Sprintf("aquarea/%s/state/%s", dataToPublish["EnduserID"], key)
-		am.publish(topic, value, true)
-	}
+func (am *aquareaMQTT) publish(data map[string]string) {
+	deviceID := data["EnduserID"]
+	delete(data, "EnduserID")
 
-}
+	for key, value := range data {
+		topic := fmt.Sprintf("aquarea/%s/%s", deviceID, key)
+		value = strings.ToUpper(strings.TrimSpace(value))
+		fmt.Println(topic, ":", value)
 
-func (am *aquareaMQTT) publishLog(aqLog map[string]string) {
-	for key, value := range aqLog {
-		topic := fmt.Sprintf("aquarea/%s/log/%s", aqLog["EnduserID"], key)
-		am.publish(topic, value, false)
-	}
-}
-
-func (am *aquareaMQTT) publish(topic, value string, retain bool) {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	fmt.Println(topic, ": ", value)
-
-	token := am.mqttClient.Publish(topic, byte(0), retain, value)
-	if token.Wait() && token.Error() != nil {
-		fmt.Printf("Fail to publish, %v", token.Error())
+		token := am.mqttClient.Publish(topic, byte(0), true, value)
+		if token.Wait() && token.Error() != nil {
+			fmt.Printf("Fail to publish, %v", token.Error())
+		}
 	}
 }

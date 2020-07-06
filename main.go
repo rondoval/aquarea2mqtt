@@ -44,10 +44,10 @@ func main() {
 	config := readConfig()
 
 	dataChannel := make(chan map[string]string)
-	logChannel := make(chan map[string]string)
+	commandChannel := make(chan map[string]string)
 
-	go mqttHandler(config, dataChannel, logChannel)
-	go aquareaHandler(config, dataChannel, logChannel)
+	go mqttHandler(config, dataChannel, commandChannel)
+	go aquareaHandler(config, dataChannel, commandChannel)
 
 	for {
 	}

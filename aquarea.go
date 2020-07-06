@@ -26,7 +26,6 @@ type aquarea struct {
 	AquareaServiceCloudPassword string
 	logSecOffset                int64
 	dataChannel                 chan map[string]string
-	logChannel                  chan map[string]string
 
 	httpClient      http.Client
 	dictionaryWebUI map[string]string
@@ -34,7 +33,7 @@ type aquarea struct {
 	translation     map[string]string
 }
 
-func aquareaHandler(config configType, dataChannel chan map[string]string, logChannel chan map[string]string) {
+func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan map[string]string) {
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
 	aquareaInstance.AquareaSmartCloudURL = config.AquareaSmartCloudURL
@@ -42,7 +41,6 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, logCh
 	aquareaInstance.AquareaServiceCloudPassword = config.AquareaServiceCloudPassword
 	aquareaInstance.logSecOffset = config.LogSecOffset
 	aquareaInstance.dataChannel = dataChannel
-	aquareaInstance.logChannel = logChannel
 	aquareaInstance.usersMap = make(map[string]aquareaEndUserJSON)
 
 	// Load JSON with translations from Aquarea cryptic names
@@ -74,12 +72,17 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, logCh
 	for !aquareaInstance.aquareaSetup() {
 		//TODO robustness. What if logs out while running
 	}
+	log.Println("Logged in to Aquarea Service Cloud")
 
 	for {
 		select {
+		case command := <-commandChannel:
+			if command != nil {
+				command = nil
+			}
 		//TODO handle writes through channel
 		default:
-			aquareaInstance.parseAllDevices()
+			aquareaInstance.feedDataFromAquarea()
 			time.Sleep(poolInterval)
 		}
 	}
@@ -101,10 +104,10 @@ func (aq *aquarea) aquareaSetup() bool {
 	return true
 }
 
-func (aq *aquarea) parseAllDevices() {
+func (aq *aquarea) feedDataFromAquarea() {
 	for _, user := range aq.usersMap {
 		// Send device status
-		deviceStatus, err := aq.parseDevice(user)
+		deviceStatus, err := aq.parseDeviceStatus(user)
 		if err != nil {
 			log.Println(err)
 			return
@@ -117,12 +120,11 @@ func (aq *aquarea) parseAllDevices() {
 			log.Println(err)
 			return
 		}
-
-		aq.logChannel <- logData
+		aq.dataChannel <- logData
 	}
 }
 
-func (aq aquarea) parseDevice(user aquareaEndUserJSON) (map[string]string, error) {
+func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON) (map[string]string, error) {
 	r, err := aq.getDeviceStatus(user)
 	deviceStatus := make(map[string]string)
 	deviceStatus["EnduserID"] = user.Gwid
@@ -136,7 +138,7 @@ func (aq aquarea) parseDevice(user aquareaEndUserJSON) (map[string]string, error
 		case "simple-value":
 			value = val.Value
 		}
-		deviceStatus[name] = value
+		deviceStatus[fmt.Sprintf("state/%s", name)] = value
 
 	}
 	return deviceStatus, err
@@ -285,7 +287,6 @@ func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusRespon
 
 func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]string, error) {
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
-	//TODO error handling
 	ValueList := "{\"logItems\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70]}"
 	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/data/log", url.Values{
 		"var.deviceId":        {eu.DeviceID},
@@ -300,14 +301,19 @@ func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]str
 	}
 	var aquareaLogData aquareaLogDataJSON
 	err = json.Unmarshal(b, &aquareaLogData)
+	if err != nil {
+		return nil, err
+	}
 
 	var deviceLog map[int64][]string
 	err = json.Unmarshal([]byte(aquareaLogData.LogData), &deviceLog)
+	if err != nil {
+		return nil, err
+	}
 	if len(deviceLog) < 1 {
-		// no date in log
+		// no data in log
 		return nil, nil
 	}
-	//TODO figure out log item names
 
 	// we're interested in the most recent snapshot only
 	var lastKey int64 = 0
@@ -319,10 +325,11 @@ func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]str
 
 	stats := make(map[string]string)
 	for i, val := range deviceLog[lastKey] {
-		stats[fmt.Sprintf("%d", i)] = val
+		//TODO figure out log item names
+		stats[fmt.Sprintf("log/%d", i)] = val
 	}
-	stats["timestamp"] = fmt.Sprintf("%d", lastKey)
-	stats["current_error"] = string(aquareaLogData.ErrorCode)
+	stats["log/timestamp"] = fmt.Sprintf("%d", lastKey)
+	stats["log/current_error"] = string(aquareaLogData.ErrorCode)
 	stats["EnduserID"] = eu.Gwid
 	return stats, nil
 }
