@@ -77,3 +77,18 @@ type aquareaLoginJSON struct {
 	} `json:"agreementStatus"`
 	ErrorCode int `json:"errorCode"`
 }
+
+// Settings using Service Cloud API
+type aquareaFunctionSettingGetJSON struct {
+	SettingDataInfo map[string]struct {
+		Type          string            `json:"type"` // select (selectedValue), basic-text(textValue), placeholder-text (placeholder, params)
+		SelectedValue string            `json:"selectedValue"`
+		Placeholder   string            `json:"placeholder"`
+		Params        map[string]string `json:"params"`
+		TextValue     string            `json:"textValue"`
+	} `json:"settingDataInfo"`
+	SettingsBackgroundData map[string]struct {
+		Value string `json:"value"`
+	} `json:"settingBackgroundData"`
+	ErrorCode int `json:"errorCode"`
+}

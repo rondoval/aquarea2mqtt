@@ -13,6 +13,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -107,6 +108,9 @@ func (aq *aquarea) aquareaSetup() bool {
 
 func (aq *aquarea) feedDataFromAquarea() {
 	for _, user := range aq.usersMap {
+		settings, err := aq.testingSettings(user)
+		aq.dataChannel <- settings
+
 		// Send device status
 		deviceStatus, err := aq.parseDeviceStatus(user)
 		if err != nil {
@@ -131,7 +135,10 @@ func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON) (map[string]string,
 	deviceStatus["EnduserID"] = user.Gwid
 
 	for key, val := range r.StatusDataInfo {
-		name := aq.translation[key]
+		name := key
+		if _, ok := aq.translation[key]; ok {
+			name = aq.translation[key]
+		}
 		var value string
 		switch val.Type {
 		case "basic-text":
@@ -314,7 +321,7 @@ func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusRespon
 	return aquareaStatusResponse, err
 }
 
-func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]string, error) {
+func (aq *aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]string, error) {
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
 	valueList := "{\"logItems\":["
 	for i := range aq.logItems {
@@ -331,7 +338,6 @@ func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]str
 	})
 	if err != nil {
 		return nil, err
-
 	}
 	var aquareaLogData aquareaLogDataJSON
 	err = json.Unmarshal(b, &aquareaLogData)
@@ -414,7 +420,7 @@ func (aq *aquarea) httpGet(url string) ([]byte, error) {
 	return b, err
 }
 
-func (aq aquarea) makeChangeHeatingTemperatureJSON(eui string, zoneid int, setpoint int) {
+func (aq *aquarea) makeChangeHeatingTemperatureJSON(eui string, zoneid int, setpoint int) {
 	eu := aq.usersMap[eui]
 
 	setParam := aquareaSetParamJSON{
@@ -439,7 +445,7 @@ func (aq aquarea) makeChangeHeatingTemperatureJSON(eui string, zoneid int, setpo
 }
 
 // funkcja tylko do testow writow
-func (aq aquarea) setUserOption(eui string, payload string) error {
+func (aq *aquarea) setUserOption(eui string, payload string) error {
 	eu := aq.usersMap[eui]
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
 
@@ -490,4 +496,52 @@ func (aq aquarea) setUserOption(eui string, payload string) error {
 		return errors.New(http.StatusText(resp.StatusCode))
 	}
 	return nil
+}
+
+func (aq *aquarea) testingSettings(user aquareaEndUserJSON) (map[string]string, error) {
+	//https://aquarea-service.panasonic.com/installer/functionSetting
+	//dictionary - jsonMessage
+	// TODO
+
+	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
+	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/get", url.Values{
+		"var.deviceId":        {user.DeviceID},
+		"shiesuahruefutohkun": {shiesuahruefutohkun},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var aquareaSettings aquareaFunctionSettingGetJSON
+	err = json.Unmarshal(b, &aquareaSettings)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	fmt.Println(aquareaSettings)
+
+	settings := make(map[string]string)
+	settings["EnduserID"] = user.Gwid
+
+	for key, val := range aquareaSettings.SettingDataInfo {
+		if !strings.Contains(key, "user") {
+			continue
+		}
+		name := key
+		if _, ok := aq.translation[key]; ok {
+			name = aq.translation[key]
+		}
+		var value string
+		switch val.Type {
+		case "basic-text":
+			value = aq.dictionaryWebUI[val.TextValue]
+		case "select":
+			//TODO
+			i, _ := strconv.ParseInt(val.SelectedValue, 0, 8)
+			value = fmt.Sprintf("%d", i)
+		case "placeholder-text":
+			value = val.Placeholder // + val.Params
+		}
+		settings[fmt.Sprintf("settings/%s", name)] = value
+	}
+	return settings, err
 }
