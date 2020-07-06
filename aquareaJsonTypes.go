@@ -1,14 +1,14 @@
 package main
 
-type endUsersListJSON struct {
-	ZoomMap            int           `json:"zoomMap"`
-	ErrorCode          int           `json:"errorCode"`
-	Endusers           []endUserJSON `json:"endusers"`
-	LongitudeCenterMap string        `json:"longitudeCenterMap"`
-	Size               int           `json:"size"`
-	LatitudeCenterMap  string        `json:"latitudeCenterMap"`
+type aquareaEndUsersListJSON struct {
+	ZoomMap            int                  `json:"zoomMap"`
+	ErrorCode          int                  `json:"errorCode"`
+	Endusers           []aquareaEndUserJSON `json:"endusers"`
+	LongitudeCenterMap string               `json:"longitudeCenterMap"`
+	Size               int                  `json:"size"`
+	LatitudeCenterMap  string               `json:"latitudeCenterMap"`
 }
-type endUserJSON struct {
+type aquareaEndUserJSON struct {
 	Address    string      `json:"address"`
 	CompanyID  string      `json:"companyId"`
 	Connection string      `json:"connection"`
@@ -28,156 +28,13 @@ type endUserJSON struct {
 
 type aquareaStatusResponseJSON struct {
 	ErrorCode      int `json:"errorCode"`
-	StatusDataInfo struct {
-		FunctionStatusText005 struct {
-			TextValue string `json:"textValue"`
-			Type      string `json:"type"`
-		} `json:"function-status-text-005"`
-		FunctionStatusText027 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-027"`
-		FunctionStatusText049 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-049"`
-		FunctionStatusText025 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-025"`
-		FunctionStatusText047 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-047"`
-		FunctionStatusText068 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-068"`
-		FunctionStatusText009 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-009"`
-		FunctionStatusText007 struct {
-			TextValue string `json:"textValue"`
-			Type      string `json:"type"`
-		} `json:"function-status-text-007"`
-		FunctionStatusText029 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-029"`
-		FunctionStatusText041 struct {
-			TextValue string `json:"textValue"`
-			Type      string `json:"type"`
-		} `json:"function-status-text-041"`
-		FunctionStatusText063 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-063"`
-		FunctionStatusText060 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-060"`
-		FunctionStatusText023 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-023"`
-		FunctionStatusText045 struct {
-			TextValue string `json:"textValue"`
-			Type      string `json:"type"`
-		} `json:"function-status-text-045"`
-		FunctionStatusText021 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-021"`
-		FunctionStatusText043 struct {
-			TextValue string `json:"textValue"`
-			Type      string `json:"type"`
-		} `json:"function-status-text-043"`
-		FunctionStatusText065 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-065"`
-		FunctionStatusText015 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-015"`
-		FunctionStatusText037 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-037"`
-		FunctionStatusText058 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-058"`
-		FunctionStatusText013 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-013"`
-		FunctionStatusText035 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-035"`
-		FunctionStatusText019 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-019"`
-		FunctionStatusText017 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-017"`
-		FunctionStatusText039 struct {
-			TextValue string `json:"textValue"`
-			Type      string `json:"type"`
-		} `json:"function-status-text-039"`
-		FunctionStatusText051 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-051"`
-		FunctionStatusText056 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-056"`
-		FunctionStatusText011 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-011"`
-		FunctionStatusText031 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-031"`
-		FunctionStatusText053 struct {
-			Type  string `json:"type"`
-			Value string `json:"value"`
-		} `json:"function-status-text-053"`
+	StatusDataInfo map[string]struct {
+		Value     string `json:"value"`
+		TextValue string `json:"textValue"`
+		Type      string `json:"type"`
 	} `json:"statusDataInfo"`
-	StatusBackgroundDataInfo struct {
-		ZeroXA0 struct {
-			Value string `json:"value"`
-		} `json:"0xA0"`
-		ZeroX20 struct {
-			Value string `json:"value"`
-		} `json:"0x20"`
-		ZeroXE1 struct {
-			Value string `json:"value"`
-		} `json:"0xE1"`
-		ZeroXE0 struct {
-			Value string `json:"value"`
-		} `json:"0xE0"`
-		ZeroXFA struct {
-			Value string `json:"value"`
-		} `json:"0xFA"`
-		ZeroXF0 struct {
-			Value string `json:"value"`
-		} `json:"0xF0"`
-		ZeroX80 struct {
-			Value string `json:"value"`
-		} `json:"0x80"`
-		ZeroXF9 struct {
-			Value string `json:"value"`
-		} `json:"0xF9"`
-		ZeroXC4 struct {
-			Value string `json:"value"`
-		} `json:"0xC4"`
+	StatusBackgroundDataInfo map[string]struct {
+		Value string `json:"value"`
 	} `json:"statusBackgroundDataInfo"`
 }
 
@@ -200,6 +57,7 @@ type aquareaLogDataJSON struct {
 	HistoryNo       string `json:"historyNo"`
 }
 
+// These below are for changing settings of the heat pump
 type setParamJSON struct {
 	Status []spStatusJSON `json:"status"`
 }

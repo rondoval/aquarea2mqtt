@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -15,7 +14,7 @@ type aquareaMQTT struct {
 	mqttClient mqtt.Client
 }
 
-func mqttHandler(config configType, dataChannel chan aquareaDeviceStatus, logChannel chan aquareaLog) {
+func mqttHandler(config configType, dataChannel chan map[string]string, logChannel chan aquareaLog) {
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -75,26 +74,12 @@ func handleMSGfromMQTT(mclient mqtt.Client, msg mqtt.Message) {
 	log.Printf("* [%s] %s\n", msg.Topic(), string(msg.Payload()))
 }
 
-func (am *aquareaMQTT) publishStates(dataToPublish aquareaDeviceStatus) {
-	//TODO why this way? marshal/unmarhal/iterate...
-	jsonData, err := json.Marshal(dataToPublish)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	var m map[string]string
-	err = json.Unmarshal([]byte(jsonData), &m)
-	if err != nil {
-		fmt.Println("BLAD:", err, jsonData)
-		return
-	}
-
-	for key, value := range m {
-		TOP := "aquarea/state/" + fmt.Sprintf("%s/%s", m["EnduserID"], key)
-		value = strings.TrimSpace(value)
-		value = strings.ToUpper(value)
-		token := am.mqttClient.Publish(TOP, byte(0), false, value)
+func (am *aquareaMQTT) publishStates(dataToPublish map[string]string) {
+	for key, value := range dataToPublish {
+		topic := "aquarea/" + fmt.Sprintf("%s/state/%s", dataToPublish["EnduserID"], key)
+		value = strings.ToUpper(strings.TrimSpace(value))
+		token := am.mqttClient.Publish(topic, byte(0), true, value)
+		fmt.Println(topic, ": ", value)
 		if token.Wait() && token.Error() != nil {
 			fmt.Printf("Fail to publish, %v", token.Error())
 		}
@@ -106,7 +91,7 @@ func (am *aquareaMQTT) publishLog(aqLog aquareaLog) {
 	TSS := fmt.Sprintf("%d", aqLog.timestamp)
 	for key, value := range aqLog.logData {
 		TOP := "aquarea/log/" + fmt.Sprintf("%d", key)
-		fmt.Println("Publikuje do ", TOP, "warosc", value)
+		fmt.Println(TOP, ": ", value)
 		value = strings.TrimSpace(value)
 		value = strings.ToUpper(value)
 		token := am.mqttClient.Publish(TOP, byte(0), false, value)
@@ -115,7 +100,7 @@ func (am *aquareaMQTT) publishLog(aqLog aquareaLog) {
 		}
 	}
 	TOP := "aquarea/log/LastUpdated"
-	fmt.Println("Publikuje do ", TOP, "warosc", TSS)
+	fmt.Println(TOP, ": ", TSS)
 	token := am.mqttClient.Publish(TOP, byte(0), false, TSS)
 	if token.Wait() && token.Error() != nil {
 		fmt.Printf("Fail to publish, %v", token.Error())

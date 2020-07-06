@@ -43,7 +43,7 @@ func readConfig() configType {
 func main() {
 	config := readConfig()
 
-	dataChannel := make(chan aquareaDeviceStatus)
+	dataChannel := make(chan map[string]string)
 	logChannel := make(chan aquareaLog)
 
 	go mqttHandler(config, dataChannel, logChannel)

@@ -18,19 +18,22 @@ import (
 	"time"
 )
 
+const translationFile = "translation.json"
+
 type aquarea struct {
 	AquareaServiceCloudURL      string
 	AquareaSmartCloudURL        string
 	AquareaServiceCloudLogin    string
 	AquareaServiceCloudPassword string
 	logSecOffset                int64
-	dataChannel                 chan aquareaDeviceStatus
+	dataChannel                 chan map[string]string
 	logChannel                  chan aquareaLog
 
 	httpClient      http.Client
 	logTimestamp    int64
 	dictionaryWebUI map[string]string
-	usersMap        map[string]endUserJSON
+	usersMap        map[string]aquareaEndUserJSON
+	translation     map[string]string
 }
 
 type aquareaLog struct {
@@ -38,42 +41,7 @@ type aquareaLog struct {
 	timestamp int64
 }
 
-type aquareaDeviceStatus struct {
-	EnduserID                         string
-	RunningStatus                     string
-	WorkingMode                       string
-	WaterInlet                        string
-	WaterOutlet                       string
-	Zone1ActualTemperature            string
-	Zone1SetpointTemperature          string
-	Zone1WaterTemperature             string
-	Zone2ActualTemperature            string
-	Zone2SetpointTemperature          string
-	Zone2WaterTemperature             string
-	DailyWaterTankActualTemperature   string
-	DailyWaterTankSetpointTemperature string
-	BufferTankTemperature             string
-	OutdoorTemperature                string
-	CompressorStatus                  string
-	WaterFlow                         string
-	PumpSpeed                         string
-	HeatDirection                     string
-	RoomHeaterStatus                  string
-	DailyWaterHeaterStatus            string
-	DefrostStatus                     string
-	SolarStatus                       string
-	SolarTemperature                  string
-	BiMode                            string
-	ErrorStatus                       string
-	CompressorFrequency               string
-	Runtime                           string
-	RunCount                          string
-	RoomHeaterPerformance             string
-	RoomHeaterRunTime                 string
-	DailyWaterHeaterRunTime           string
-}
-
-func aquareaHandler(config configType, dataChannel chan aquareaDeviceStatus, logChannel chan aquareaLog) {
+func aquareaHandler(config configType, dataChannel chan map[string]string, logChannel chan aquareaLog) {
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
 	aquareaInstance.AquareaSmartCloudURL = config.AquareaSmartCloudURL
@@ -82,7 +50,17 @@ func aquareaHandler(config configType, dataChannel chan aquareaDeviceStatus, log
 	aquareaInstance.logSecOffset = config.LogSecOffset
 	aquareaInstance.dataChannel = dataChannel
 	aquareaInstance.logChannel = logChannel
-	aquareaInstance.usersMap = make(map[string]endUserJSON)
+	aquareaInstance.usersMap = make(map[string]aquareaEndUserJSON)
+
+	// Load JSON with translations from Aquarea cryptic names
+	data, err := ioutil.ReadFile(translationFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(data, &aquareaInstance.translation)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	poolInterval, err := time.ParseDuration(config.PoolInterval)
 	if err != nil {
@@ -154,54 +132,27 @@ func (aq *aquarea) parseAllDevices() {
 	}
 }
 
-func (aq aquarea) parseDevice(user endUserJSON) (aquareaDeviceStatus, error) {
+func (aq aquarea) parseDevice(user aquareaEndUserJSON) (map[string]string, error) {
 	r, err := aq.getDeviceStatus(user)
+	deviceStatus := make(map[string]string)
+	deviceStatus["EnduserID"] = user.Gwid
 
-	var deviceStatus aquareaDeviceStatus
-	deviceStatus.EnduserID = user.Gwid
-	deviceStatus.RunningStatus = aq.translateCodeToString(r.StatusDataInfo.FunctionStatusText005.TextValue)
-	deviceStatus.WorkingMode = aq.translateCodeToString(r.StatusDataInfo.FunctionStatusText007.TextValue)
-	deviceStatus.WaterInlet = r.StatusDataInfo.FunctionStatusText009.Value
-	deviceStatus.WaterOutlet = r.StatusDataInfo.FunctionStatusText011.Value
-	deviceStatus.Zone1ActualTemperature = r.StatusDataInfo.FunctionStatusText013.Value
-	deviceStatus.Zone1SetpointTemperature = r.StatusDataInfo.FunctionStatusText015.Value
-	deviceStatus.Zone1WaterTemperature = r.StatusDataInfo.FunctionStatusText017.Value
-	deviceStatus.Zone2ActualTemperature = r.StatusDataInfo.FunctionStatusText019.Value
-	deviceStatus.Zone2SetpointTemperature = r.StatusDataInfo.FunctionStatusText021.Value
-	deviceStatus.Zone2WaterTemperature = r.StatusDataInfo.FunctionStatusText023.Value
-	deviceStatus.DailyWaterTankActualTemperature = r.StatusDataInfo.FunctionStatusText025.Value
-	deviceStatus.DailyWaterTankSetpointTemperature = r.StatusDataInfo.FunctionStatusText027.Value
-	deviceStatus.BufferTankTemperature = r.StatusDataInfo.FunctionStatusText029.Value
-	deviceStatus.OutdoorTemperature = r.StatusDataInfo.FunctionStatusText031.Value
-	deviceStatus.CompressorStatus = "TODO__GDZIES MUSI BYC__/33 "
-	deviceStatus.WaterFlow = r.StatusDataInfo.FunctionStatusText035.Value
-	deviceStatus.PumpSpeed = r.StatusDataInfo.FunctionStatusText037.Value
-	deviceStatus.HeatDirection = aq.translateCodeToString(r.StatusDataInfo.FunctionStatusText039.TextValue)
-	deviceStatus.RoomHeaterStatus = aq.translateCodeToString(r.StatusDataInfo.FunctionStatusText041.TextValue)
-	deviceStatus.DailyWaterHeaterStatus = aq.translateCodeToString(r.StatusDataInfo.FunctionStatusText043.TextValue)
-	deviceStatus.DefrostStatus = aq.translateCodeToString(r.StatusDataInfo.FunctionStatusText045.TextValue)
-	deviceStatus.SolarStatus = r.StatusDataInfo.FunctionStatusText047.Value
-	deviceStatus.SolarTemperature = r.StatusDataInfo.FunctionStatusText049.Value
-	deviceStatus.BiMode = r.StatusDataInfo.FunctionStatusText051.Value
-	deviceStatus.ErrorStatus = r.StatusDataInfo.FunctionStatusText053.Value
-	deviceStatus.CompressorFrequency = r.StatusDataInfo.FunctionStatusText056.Value
-	deviceStatus.Runtime = r.StatusDataInfo.FunctionStatusText058.Value
-	deviceStatus.RunCount = r.StatusDataInfo.FunctionStatusText060.Value
-	deviceStatus.RoomHeaterPerformance = r.StatusDataInfo.FunctionStatusText063.Value
-	deviceStatus.RoomHeaterRunTime = r.StatusDataInfo.FunctionStatusText065.Value
-	deviceStatus.DailyWaterHeaterRunTime = r.StatusDataInfo.FunctionStatusText068.Value
+	for key, val := range r.StatusDataInfo {
+		name := aq.translation[key]
+		var value string
+		switch val.Type {
+		case "basic-text":
+			value = aq.dictionaryWebUI[val.TextValue]
+		case "simple-value":
+			value = val.Value
+		}
+		deviceStatus[name] = value
 
+	}
 	return deviceStatus, err
 }
 
-func (aq *aquarea) translateCodeToString(source string) string {
-	if trans, found := aq.dictionaryWebUI[source]; found {
-		return trans
-	}
-	return source
-}
-
-func (aq *aquarea) getDictionary(user endUserJSON) error {
+func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 	_, err := aq.getEndUserShiesuahruefutohkun(user)
 	if err != nil {
 		return err
@@ -221,7 +172,7 @@ func (aq *aquarea) getShiesuahruefutohkun(url string) (string, error) {
 	return aq.extractShiesuahruefutohkun(body)
 }
 
-func (aq *aquarea) getEndUserShiesuahruefutohkun(user endUserJSON) (string, error) {
+func (aq *aquarea) getEndUserShiesuahruefutohkun(user aquareaEndUserJSON) (string, error) {
 	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/functionUserInformation", url.Values{
 		"var.functionSelectedGwUid": {user.GwUID},
 	})
@@ -311,7 +262,7 @@ func (aq *aquarea) aquareaInstallerHome() error {
 	if err != nil {
 		return err
 	}
-	var endUsersList endUsersListJSON
+	var endUsersList aquareaEndUsersListJSON
 	err = json.Unmarshal(b, &endUsersList)
 	if err != nil {
 		return err
@@ -325,7 +276,7 @@ func (aq *aquarea) aquareaInstallerHome() error {
 	return err
 }
 
-func (aq *aquarea) getDeviceStatus(user endUserJSON) (aquareaStatusResponseJSON, error) {
+func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusResponseJSON, error) {
 
 	var aquareaStatusResponse aquareaStatusResponseJSON
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
@@ -342,7 +293,7 @@ func (aq *aquarea) getDeviceStatus(user endUserJSON) (aquareaStatusResponseJSON,
 	return aquareaStatusResponse, err
 }
 
-func (aq aquarea) getDeviceLogInformation(eu endUserJSON) (aquareaLog, error) {
+func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (aquareaLog, error) {
 	var aqLog aquareaLog
 	var respo []string
 	var AQLogData aquareaLogDataJSON
