@@ -28,7 +28,6 @@ type aquarea struct {
 	logChannel                  chan aquareaLog
 
 	httpClient      http.Client
-	lastChecksum    [16]byte
 	logTimestamp    int64
 	dictionaryWebUI map[string]string
 	usersMap        map[string]endUserJSON
@@ -139,12 +138,7 @@ func (aq *aquarea) parseAllDevices() {
 			log.Println(err)
 			return
 		}
-		md5 := md5.Sum([]byte(fmt.Sprintf("%s", deviceStatus)))
-
-		if md5 != aq.lastChecksum {
-			aq.dataChannel <- deviceStatus
-			aq.lastChecksum = md5
-		}
+		aq.dataChannel <- deviceStatus
 
 		// Send device logs
 		logData, err := aq.getDeviceLogInformation(user)
