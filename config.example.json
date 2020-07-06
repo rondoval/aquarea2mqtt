@@ -11,5 +11,5 @@
   "MqttClientID": "aquarea-test-pub",
   "MqttKeepalive": "60s",
   "PoolInterval": "10s",
-  "LogSecOffset": 2550
+  "LogSecOffset": 500
 }

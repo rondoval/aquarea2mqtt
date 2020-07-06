@@ -13,7 +13,6 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
@@ -27,21 +26,15 @@ type aquarea struct {
 	AquareaServiceCloudPassword string
 	logSecOffset                int64
 	dataChannel                 chan map[string]string
-	logChannel                  chan aquareaLog
+	logChannel                  chan map[string]string
 
 	httpClient      http.Client
-	logTimestamp    int64
 	dictionaryWebUI map[string]string
 	usersMap        map[string]aquareaEndUserJSON
 	translation     map[string]string
 }
 
-type aquareaLog struct {
-	logData   []string
-	timestamp int64
-}
-
-func aquareaHandler(config configType, dataChannel chan map[string]string, logChannel chan aquareaLog) {
+func aquareaHandler(config configType, dataChannel chan map[string]string, logChannel chan map[string]string) {
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
 	aquareaInstance.AquareaSmartCloudURL = config.AquareaSmartCloudURL
@@ -125,10 +118,7 @@ func (aq *aquarea) parseAllDevices() {
 			return
 		}
 
-		if logData.timestamp != aq.logTimestamp {
-			aq.logChannel <- logData
-			aq.logTimestamp = logData.timestamp
-		}
+		aq.logChannel <- logData
 	}
 }
 
@@ -224,7 +214,7 @@ func (aq *aquarea) aquareaLogin() error {
 		return err
 	}
 
-	var loginStruct getLoginJSON
+	var loginStruct aquareaLoginJSON
 	err = json.Unmarshal(b, &loginStruct)
 
 	if loginStruct.ErrorCode != 0 {
@@ -293,54 +283,48 @@ func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusRespon
 	return aquareaStatusResponse, err
 }
 
-func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (aquareaLog, error) {
-	var aqLog aquareaLog
-	var respo []string
-	var AQLogData aquareaLogDataJSON
+func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]string, error) {
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
-
-	sec := time.Now().Unix() // number of seconds since January 1, 1970 UTC
-	lsec := sec - aq.logSecOffset
+	//TODO error handling
 	ValueList := "{\"logItems\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70]}"
 	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/data/log", url.Values{
 		"var.deviceId":        {eu.DeviceID},
 		"shiesuahruefutohkun": {shiesuahruefutohkun},
 		"var.target":          {"0"},
-		"var.startDate":       {fmt.Sprintf("%d000", lsec)},
+		"var.startDate":       {fmt.Sprintf("%d000", time.Now().Unix()-aq.logSecOffset)},
 		"var.logItems":        {ValueList},
 	})
 	if err != nil {
-		return aqLog, err
+		return nil, err
 
 	}
-	err = json.Unmarshal(b, &AQLogData)
+	var aquareaLogData aquareaLogDataJSON
+	err = json.Unmarshal(b, &aquareaLogData)
 
-	var anything map[int64][]string
-	err = json.Unmarshal([]byte(AQLogData.LogData), &anything)
-
-	if len(anything) < 1 {
-		return aqLog, nil
-
+	var deviceLog map[int64][]string
+	err = json.Unmarshal([]byte(aquareaLogData.LogData), &deviceLog)
+	if len(deviceLog) < 1 {
+		// no date in log
+		return nil, nil
 	}
-	keys := make([]int64, 0, len(anything))
-	for k := range anything {
-		keys = append(keys, k)
+	//TODO figure out log item names
+
+	// we're interested in the most recent snapshot only
+	var lastKey int64 = 0
+	for k := range deviceLog {
+		if lastKey < k {
+			lastKey = k
+		}
 	}
-	//sort.Ints(keys)
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 
-	lastkey := len(keys) - 1
-
-	respo = anything[keys[lastkey]]
-
-	if err != nil {
-		return aqLog, err
-
+	stats := make(map[string]string)
+	for i, val := range deviceLog[lastKey] {
+		stats[fmt.Sprintf("%d", i)] = val
 	}
-	aqLog.logData = respo
-	aqLog.timestamp = keys[lastkey]
-
-	return aqLog, nil
+	stats["timestamp"] = fmt.Sprintf("%d", lastKey)
+	stats["current_error"] = string(aquareaLogData.ErrorCode)
+	stats["EnduserID"] = eu.Gwid
+	return stats, nil
 }
 
 // Posts data to Aquarea web service

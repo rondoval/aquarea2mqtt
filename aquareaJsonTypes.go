@@ -38,14 +38,6 @@ type aquareaStatusResponseJSON struct {
 	} `json:"statusBackgroundDataInfo"`
 }
 
-type logResponseJSON struct {
-	ErrorCode int `json:"errorCode"`
-	Message   []struct {
-		ErrorMessage string `json:"errorMessage"`
-		ErrorCode    string `json:"errorCode"`
-	} `json:"message"`
-}
-
 type aquareaLogDataJSON struct {
 	ErrorHistory []struct {
 		ErrorCode string `json:"errorCode"`
@@ -75,7 +67,7 @@ type aquareaServiceCloudSSOReponseJSON struct {
 	ErrorCode int    `json:"errorCode"`
 }
 
-type getLoginJSON struct {
+type aquareaLoginJSON struct {
 	AgreementStatus struct {
 		Contract      bool `json:"contract"`
 		CookiePolicy  bool `json:"cookiePolicy"`

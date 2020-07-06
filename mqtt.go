@@ -14,7 +14,7 @@ type aquareaMQTT struct {
 	mqttClient mqtt.Client
 }
 
-func mqttHandler(config configType, dataChannel chan map[string]string, logChannel chan aquareaLog) {
+func mqttHandler(config configType, dataChannel chan map[string]string, logChannel chan map[string]string) {
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -76,32 +76,24 @@ func handleMSGfromMQTT(mclient mqtt.Client, msg mqtt.Message) {
 
 func (am *aquareaMQTT) publishStates(dataToPublish map[string]string) {
 	for key, value := range dataToPublish {
-		topic := "aquarea/" + fmt.Sprintf("%s/state/%s", dataToPublish["EnduserID"], key)
-		value = strings.ToUpper(strings.TrimSpace(value))
-		token := am.mqttClient.Publish(topic, byte(0), true, value)
-		fmt.Println(topic, ": ", value)
-		if token.Wait() && token.Error() != nil {
-			fmt.Printf("Fail to publish, %v", token.Error())
-		}
+		topic := fmt.Sprintf("aquarea/%s/state/%s", dataToPublish["EnduserID"], key)
+		am.publish(topic, value, true)
 	}
 
 }
 
-func (am *aquareaMQTT) publishLog(aqLog aquareaLog) {
-	TSS := fmt.Sprintf("%d", aqLog.timestamp)
-	for key, value := range aqLog.logData {
-		TOP := "aquarea/log/" + fmt.Sprintf("%d", key)
-		fmt.Println(TOP, ": ", value)
-		value = strings.TrimSpace(value)
-		value = strings.ToUpper(value)
-		token := am.mqttClient.Publish(TOP, byte(0), false, value)
-		if token.Wait() && token.Error() != nil {
-			fmt.Printf("Fail to publish, %v", token.Error())
-		}
+func (am *aquareaMQTT) publishLog(aqLog map[string]string) {
+	for key, value := range aqLog {
+		topic := fmt.Sprintf("aquarea/%s/log/%s", aqLog["EnduserID"], key)
+		am.publish(topic, value, false)
 	}
-	TOP := "aquarea/log/LastUpdated"
-	fmt.Println(TOP, ": ", TSS)
-	token := am.mqttClient.Publish(TOP, byte(0), false, TSS)
+}
+
+func (am *aquareaMQTT) publish(topic, value string, retain bool) {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	fmt.Println(topic, ": ", value)
+
+	token := am.mqttClient.Publish(topic, byte(0), retain, value)
 	if token.Wait() && token.Error() != nil {
 		fmt.Printf("Fail to publish, %v", token.Error())
 	}
