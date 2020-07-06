@@ -50,16 +50,18 @@ type aquareaLogDataJSON struct {
 }
 
 // These below are for changing settings of the heat pump
-type setParamJSON struct {
-	Status []spStatusJSON `json:"status"`
-}
-type zoneStatusJSON struct {
+type aquareaZoneStatusJSON struct {
 	ZoneID  int `json:"zoneId"`
 	HeatSet int `json:"heatSet"`
 }
-type spStatusJSON struct {
-	DeviceGUID string           `json:"deviceGuid"`
-	ZoneStatus []zoneStatusJSON `json:"zoneStatus"`
+
+type aquareaStatusTypeJSON struct {
+	DeviceGUID string                  `json:"deviceGuid"`
+	ZoneStatus []aquareaZoneStatusJSON `json:"zoneStatus"`
+}
+
+type aquareaSetParamJSON struct {
+	Status []aquareaStatusTypeJSON `json:"status"`
 }
 
 type aquareaServiceCloudSSOReponseJSON struct {

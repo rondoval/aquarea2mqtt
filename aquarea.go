@@ -28,9 +28,10 @@ type aquarea struct {
 	dataChannel                 chan map[string]string
 
 	httpClient      http.Client
-	dictionaryWebUI map[string]string
+	dictionaryWebUI map[string]string // xxxx-yyyy codes translation
 	usersMap        map[string]aquareaEndUserJSON
-	translation     map[string]string
+	translation     map[string]string // function name meaning
+	logItems        []string          // table with names of log items (statistics view)
 }
 
 func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan map[string]string) {
@@ -153,7 +154,21 @@ func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 	if err != nil {
 		return err
 	}
-	return aq.extractDictionary(body)
+	err = aq.extractDictionary(body)
+	if err != nil {
+		return err
+	}
+
+	body, err = aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionStatistics", nil)
+	if err != nil {
+		return err
+	}
+	err = aq.extractDictionary(body)
+	if err != nil {
+		return err
+	}
+	err = aq.extractLogItems(body)
+	return err
 }
 
 func (aq *aquarea) getShiesuahruefutohkun(url string) (string, error) {
@@ -193,6 +208,20 @@ func (aq *aquarea) extractDictionary(body []byte) error {
 	if len(dictionaryJSON) > 0 {
 		result := strings.Replace(dictionaryJSON[1], "\\", "", -1)
 		err = json.Unmarshal([]byte(result), &aq.dictionaryWebUI)
+	}
+	return err
+}
+
+func (aq *aquarea) extractLogItems(body []byte) error {
+	// We also need a table with statistic names
+	logItemsRegexp, err := regexp.Compile(`var logItems = \$\.parseJSON\('(.+)'\);`)
+	logItemsJSON := logItemsRegexp.FindStringSubmatch(string(body))
+	if len(logItemsJSON) > 0 {
+		err = json.Unmarshal([]byte(logItemsJSON[1]), &aq.logItems)
+	}
+
+	for key, val := range aq.logItems {
+		aq.logItems[key] = strings.ReplaceAll(aq.dictionaryWebUI[val], "/", "\\")
 	}
 	return err
 }
@@ -287,13 +316,18 @@ func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusRespon
 
 func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]string, error) {
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
-	ValueList := "{\"logItems\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70]}"
+	valueList := "{\"logItems\":["
+	for i := range aq.logItems {
+		valueList += fmt.Sprintf("%d,", i)
+	}
+	valueList += "]}"
+
 	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/data/log", url.Values{
 		"var.deviceId":        {eu.DeviceID},
 		"shiesuahruefutohkun": {shiesuahruefutohkun},
 		"var.target":          {"0"},
 		"var.startDate":       {fmt.Sprintf("%d000", time.Now().Unix()-aq.logSecOffset)},
-		"var.logItems":        {ValueList},
+		"var.logItems":        {valueList},
 	})
 	if err != nil {
 		return nil, err
@@ -325,11 +359,10 @@ func (aq aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]str
 
 	stats := make(map[string]string)
 	for i, val := range deviceLog[lastKey] {
-		//TODO figure out log item names
-		stats[fmt.Sprintf("log/%d", i)] = val
+		stats[fmt.Sprintf("log/%s", aq.logItems[i])] = val
 	}
 	stats["log/timestamp"] = fmt.Sprintf("%d", lastKey)
-	stats["log/current_error"] = string(aquareaLogData.ErrorCode)
+	stats["log/current_error"] = fmt.Sprintf("%d", aquareaLogData.ErrorCode)
 	stats["EnduserID"] = eu.Gwid
 	return stats, nil
 }
@@ -384,18 +417,21 @@ func (aq *aquarea) httpGet(url string) ([]byte, error) {
 func (aq aquarea) makeChangeHeatingTemperatureJSON(eui string, zoneid int, setpoint int) {
 	eu := aq.usersMap[eui]
 
-	var SetParam setParamJSON
-	var ZS zoneStatusJSON
-	ZS.HeatSet = setpoint
-	ZS.ZoneID = zoneid
-	ZST := []zoneStatusJSON{ZS}
-	var ZSS spStatusJSON
-	ZSS.DeviceGUID = eu.DeviceID
-	ZSS.ZoneStatus = ZST
-	SPS := []spStatusJSON{ZSS}
-	SetParam.Status = SPS
+	setParam := aquareaSetParamJSON{
+		Status: []aquareaStatusTypeJSON{
+			{
+				DeviceGUID: eu.DeviceID,
+				ZoneStatus: []aquareaZoneStatusJSON{
+					{
+						HeatSet: setpoint,
+						ZoneID:  zoneid,
+					},
+				},
+			},
+		},
+	}
 
-	PAYLOAD, err := json.Marshal(SetParam)
+	PAYLOAD, err := json.Marshal(setParam)
 	if err != nil {
 		return
 	}

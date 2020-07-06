@@ -21,6 +21,7 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 		log.Fatal(err)
 	}
 
+	//TODO publish home assistant compatible setup
 	var mqttInstance aquareaMQTT
 	mqttInstance.makeMQTTConn(config.MqttServer, config.MqttPort, config.MqttLogin, config.MqttPass, config.MqttClientID, mqttKeepalive)
 
@@ -43,7 +44,7 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 	opts.SetAutoReconnect(true) // default, but I want it explicit
 	opts.SetKeepAlive(mqttKeepalive)
 	opts.SetOnConnectHandler(func(c mqtt.Client) {
-		c.Subscribe("aquarea/+/+/set", 2, handleMSGfromMQTT)
+		c.Subscribe("aquarea/+/+/set", 2, handleSubscription)
 	})
 
 	// connect to broker
@@ -56,8 +57,8 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 	log.Println("MQTT connected")
 }
 
-func handleMSGfromMQTT(mclient mqtt.Client, msg mqtt.Message) {
-	//TODO more generic one needed, send data to a channel - commandChannel
+func handleSubscription(mclient mqtt.Client, msg mqtt.Message) {
+	//TODO more generic one needed, send data to a channel - commandChannel, possibly key-value pairs
 	s := strings.Split(msg.Topic(), "/")
 	if len(s) > 3 {
 		DeviceID := s[1]
