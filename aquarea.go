@@ -18,7 +18,13 @@ import (
 
 const translationFile = "translation.json"
 
-type functionDescription struct {
+// for passing MQTT set commands via channel
+type aquareaCommand struct {
+	deviceID string
+	setting  string
+	value    string
+}
+type aquareaFunctionDescription struct {
 	Name   string            `json:"name"`
 	Kind   string            `json:"kind"`
 	Values map[string]string `json:"values"`
@@ -33,13 +39,13 @@ type aquarea struct {
 	dataChannel                 chan map[string]string
 
 	httpClient      http.Client
-	dictionaryWebUI map[string]string // xxxx-yyyy codes translation
-	usersMap        map[string]aquareaEndUserJSON
-	translation     map[string]functionDescription // function name meaning
-	logItems        []string                       // table with names of log items (statistics view)
+	dictionaryWebUI map[string]string                     // xxxx-yyyy codes translation
+	usersMap        map[string]aquareaEndUserJSON         // list of users (devices) linked to an account
+	translation     map[string]aquareaFunctionDescription // function name meaning
+	logItems        []string                              // table with names of log items (statistics view)
 }
 
-func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan map[string]string) {
+func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
 	aquareaInstance.AquareaSmartCloudURL = config.AquareaSmartCloudURL
@@ -80,16 +86,13 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 	}
 	log.Println("Logged in to Aquarea Service Cloud")
 
+	ticker := time.NewTicker(poolInterval)
 	for {
 		select {
-		case command := <-commandChannel:
-			if command != nil {
-				command = nil
-			}
-		//TODO handle writes through channel
-		default:
+		case <-ticker.C:
 			aquareaInstance.feedDataFromAquarea()
-			time.Sleep(poolInterval)
+		case command := <-commandChannel:
+			aquareaInstance.sendSetting(command)
 		}
 	}
 
@@ -376,12 +379,18 @@ func (aq *aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]st
 		}
 	}
 
+	unitRegexp, err := regexp.Compile(`(.+)\[(.+)\]`)
+
 	stats := make(map[string]string)
 	for i, val := range deviceLog[lastKey] {
-		stats[fmt.Sprintf("log/%s", aq.logItems[i])] = val
+		split := unitRegexp.FindStringSubmatch(aq.logItems[i])
+
+		topic := "log/" + strings.ReplaceAll(strings.Title(split[1]), " ", "")
+		stats[topic+"/unit"] = split[2]
+		stats[topic] = val
 	}
-	stats["log/timestamp"] = fmt.Sprintf("%d", lastKey)
-	stats["log/current_error"] = fmt.Sprintf("%d", aquareaLogData.ErrorCode)
+	stats["log/Timestamp"] = fmt.Sprintf("%d", lastKey)
+	stats["log/CurrentError"] = fmt.Sprintf("%d", aquareaLogData.ErrorCode)
 	stats["EnduserID"] = eu.Gwid
 	return stats, nil
 }
@@ -434,29 +443,32 @@ func (aq *aquarea) httpGet(url string) ([]byte, error) {
 }
 
 // Settings panel
-func (aq *aquarea) sendSetting(user aquareaEndUserJSON, name, value string) error {
-	//	values := make(url.Values)
-	//	values["var.deviceId"] = []string{ user.DeviceID }
+func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
+	if cmd.value == "----" {
+		log.Println("Dummy value not set")
+		return nil
+	}
+
+	user := aq.usersMap[cmd.deviceID]
+	values := make(url.Values)
+	values["var.deviceId"] = []string{user.DeviceID}
 	//	values["var.preOperation"] = getBackgroundDataValue("0x80")
 	//	values["var.preMode"] = getBackgroundDataValue("0xE0")
 	//	values["var.preTank"] = getBackgroundDataValue("0xE1")
 
-	//	if value == "----" {
-	//		return nil
-	//	}
 	// translate from MQTT name to func-set-user-select-xxx
 	// translate to userSelectxxx
 
 	//	values["var." + name] = []string{value}
 
-	//	_, err := aq.getEndUserShiesuahruefutohkun(user)
-	//	_, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
-	//	if err != nil {
-	//		return err
-	//	}
+	_, err := aq.getEndUserShiesuahruefutohkun(user)
+	if err != nil {
+		return err
+	}
+	_, err = aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
 
 	//TODO usec check api to confirm settings are applied
-	return nil
+	return err
 }
 
 func (aq *aquarea) testingSettings(user aquareaEndUserJSON) (map[string]string, error) {

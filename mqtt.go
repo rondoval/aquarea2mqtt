@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
@@ -11,10 +10,11 @@ import (
 )
 
 type aquareaMQTT struct {
-	mqttClient mqtt.Client
+	mqttClient     mqtt.Client
+	commandChannel chan aquareaCommand
 }
 
-func mqttHandler(config configType, dataChannel chan map[string]string, commandChannel chan map[string]string) {
+func mqttHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -23,6 +23,7 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 
 	//TODO publish home assistant compatible setup
 	var mqttInstance aquareaMQTT
+	mqttInstance.commandChannel = commandChannel
 	mqttInstance.makeMQTTConn(config.MqttServer, config.MqttPort, config.MqttLogin, config.MqttPass, config.MqttClientID, mqttKeepalive)
 
 	for {
@@ -40,11 +41,12 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 	opts.SetPassword(mqttPass)
 	opts.SetUsername(mqttLogin)
 	opts.SetClientID(mqttClientID)
-
-	opts.SetAutoReconnect(true) // default, but I want it explicit
 	opts.SetKeepAlive(mqttKeepalive)
+
+	opts.SetCleanSession(true)  // don't want to receive entire backlog of setting changes
+	opts.SetAutoReconnect(true) // default, but I want it explicit
 	opts.SetOnConnectHandler(func(c mqtt.Client) {
-		c.Subscribe("aquarea/+/+/set", 2, handleSubscription)
+		c.Subscribe("aquarea/+/settings/+/set", 2, am.handleSubscription)
 	})
 
 	// connect to broker
@@ -57,20 +59,15 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 	log.Println("MQTT connected")
 }
 
-func handleSubscription(mclient mqtt.Client, msg mqtt.Message) {
-	//TODO more generic one needed, send data to a channel - commandChannel, possibly key-value pairs
-	s := strings.Split(msg.Topic(), "/")
-	if len(s) > 3 {
-		DeviceID := s[1]
-		Operation := s[2]
-		log.Printf("Device ID %s \n Operation %s", DeviceID, Operation)
-		if Operation == "Zone1SetpointTemperature" {
-			i, err := strconv.ParseFloat(string(msg.Payload()), 32)
-			log.Printf("i=%v, type: %T\n err: %s", i, i, err)
-			//makeChangeHeatingTemperatureJSON(DeviceID, 1, int(i))
-		}
+func (am *aquareaMQTT) handleSubscription(mclient mqtt.Client, msg mqtt.Message) {
+	topicPieces := strings.Split(msg.Topic(), "/")
+	if len(topicPieces) > 3 {
+		deviceID := topicPieces[1]
+		setting := topicPieces[3]
+
+		log.Printf("Received: Device ID %s setting: %s", deviceID, setting)
+		am.commandChannel <- aquareaCommand{deviceID, setting, string(msg.Payload())}
 	}
-	log.Printf("* [%s] %s\n", msg.Topic(), string(msg.Payload()))
 }
 
 func (am *aquareaMQTT) publish(data map[string]string) {
