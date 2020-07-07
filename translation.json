@@ -1,55 +1,248 @@
 {
-    "function-status-text-005": "Operation",
-    "function-status-text-007": "Mode",
-    "function-status-text-009": "InletWater",
-    "function-status-text-011": "OutletWater",
-    "function-status-text-013": "Zone1TemperatureActual",
-    "function-status-text-015": "Zone1TemperatureSet",
-    "function-status-text-017": "Zone1WaterTemperature",
-    "function-status-text-019": "Zone2TemperatureActual",
-    "function-status-text-021": "Zone2TemperatureSet",
-    "function-status-text-023": "Zone2WaterTemperature",
-    "function-status-text-025": "DHWTankTemperatureActual",
-    "function-status-text-027": "DHWTankTemperatureSet",
-    "function-status-text-029": "BufferTankTemperature",
-    "function-status-text-031": "OutdoorTemperature",
-    "function-status-text-035": "WaterFlow",
-    "function-status-text-037": "PumpSpeed",
-    "function-status-text-039": "ThreeWayValve",
-    "function-status-text-041": "RoomHeaterStatus",
-    "function-status-text-043": "TankHeaterStatus",
-    "function-status-text-045": "DefrostStatus",
-    "function-status-text-047": "SolarStatus",
-    "function-status-text-049": "SolarTemperature",
-    "function-status-text-051": "BivalentMode",
-    "function-status-text-053": "ErrorStatus",
-    "function-status-text-056": "CompressorFrequency",
-    "function-status-text-058": "CompressorOperatingTime",
-    "function-status-text-060": "CompressorNumberOfOperations",
-    "function-status-text-063": "RoomHeaterCapacity",
-    "function-status-text-065": "RoomHeateOperatingTime",
-    "function-status-text-068": "TankHeaterOperatingTime",
-    "function-setting-user-select-003": "Operation",
-    "function-setting-user-select-005": "OperationMode",
-    "function-setting-user-select-008": "ZoneTargetTemperatureZone1Heat",
-    "function-setting-user-select-009": "ZoneTargetTemperatureZone2Heat",
-    "function-setting-user-select-010": "ZoneTargetTemperatureZone1Cool", 
-    "function-setting-user-select-011": "ZoneTargetTemperatureZone2Cool",
-    "function-setting-user-select-013": "TankTargetTemperature",
-    "function-setting-user-select-015": "ZoneOperationSetting",
-    "function-setting-user-select-018": "ForceDHW",
-    "function-setting-user-select-020": "WeeklyTimer",
-    "function-setting-user-select-022": "HolidayMode",
-    "function-setting-user-select-023": "HolidayModeHeatSiftTemp",
-    "function-setting-user-select-024": "HolidayModeTankShiftTemp",
-    "function-setting-user-select-026": "QuietTimer",
-    "function-setting-user-select-028": "QuietMode",
-    "function-setting-user-select-030": "RoomHeater",
-    "function-setting-user-select-032": "TankHeater",
-    "function-setting-user-select-034": "Sterilization",
-    "function-setting-user-select-035": "TankSensor",
-    "function-setting-user-select-036": "Powerful",
-    "function-setting-user-select-038": "ForceHeater",
-    "function-setting-user-select-040": "ForceDefrost"
+    "function-status-text-005": {
+        "name": "Operation"
+    },
+    "function-status-text-007": {
+        "name":  "Mode"
+    },
+    "function-status-text-009": {
+        "name":  "InletWater"
+    },
+    "function-status-text-011": {
+        "name":  "OutletWater"
+    },
+    "function-status-text-013": {
+        "name":  "Zone1TemperatureActual"
+    },
+    "function-status-text-015": {
+        "name":  "Zone1TemperatureSet"
+    },
+    "function-status-text-017": {
+        "name":  "Zone1WaterTemperature"
+    },
+    "function-status-text-019": {
+        "name":  "Zone2TemperatureActual"
+    },
+    "function-status-text-021": {
+        "name":  "Zone2TemperatureSet"
+    },
+    "function-status-text-023": {
+        "name":  "Zone2WaterTemperature"
+    },
+    "function-status-text-025": {
+        "name":  "DHWTankTemperatureActual"
+    },
+    "function-status-text-027": {
+        "name":  "DHWTankTemperatureSet"
+    },
+    "function-status-text-029": {
+        "name":  "BufferTankTemperature"
+    },
+    "function-status-text-031": {
+        "name":  "OutdoorTemperature"
+    },
+    "function-status-text-035": {
+        "name":  "WaterFlow"
+    },
+    "function-status-text-037": {
+        "name":  "PumpSpeed"
+    },
+    "function-status-text-039": {
+        "name":  "ThreeWayValve"
+    },
+    "function-status-text-041": {
+        "name":  "RoomHeaterStatus"
+    },
+    "function-status-text-043": {
+        "name":  "TankHeaterStatus"
+    },
+    "function-status-text-045": {
+        "name":  "DefrostStatus"
+    },
+    "function-status-text-047": {
+        "name":  "SolarStatus"
+    },
+    "function-status-text-049": {
+        "name":  "SolarTemperature"
+    },
+    "function-status-text-051": {
+        "name":  "BivalentMode"
+    },
+    "function-status-text-053": {
+        "name":  "ErrorStatus"
+    },
+    "function-status-text-056": {
+        "name":  "CompressorFrequency"
+    },
+    "function-status-text-058": {
+        "name":  "CompressorOperatingTime"
+    },
+    "function-status-text-060": {
+        "name":  "CompressorNumberOfOperations"
+    },
+    "function-status-text-063": {
+        "name":  "RoomHeaterCapacity"
+    },
+    "function-status-text-065": {
+        "name":  "RoomHeateOperatingTime"
+    },
+    "function-status-text-068": {
+        "name":  "TankHeaterOperatingTime"
+    },
+    "function-setting-user-select-003": {
+        "name": "Operation",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-00D7",
+            "0x02": "2010-00DC"
+        }
+    },
+    "function-setting-user-select-005": {
+        "name": "OperationMode",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-00E1",
+            "0x02": "2010-00E6",
+            "0x03": "2010-00EB",
+            "0x08": "2010-00F0",
+            "0x0B": "2010-00F5",
+            "0x0C": "2010-00FA",
+            "0x0D": "2010-00FF"
+        }
+    },
+    "function-setting-user-select-008": {
+        "name": "ZoneTargetTemperatureZone1Heat",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-009": {
+        "name": "ZoneTargetTemperatureZone2Heat",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-010": {
+        "name": "ZoneTargetTemperatureZone1Cool",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-011": {
+        "name": "ZoneTargetTemperatureZone2Cool",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-013": {
+        "name": "TankTargetTemperature",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-015": {
+        "name": "ZoneOperationSetting",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0122",
+            "0x02": "2010-0127",
+            "0x03": "2010-012C"
+        }
+    },
+    "function-setting-user-select-018": {
+        "name": "ForceDHW",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0136",
+            "0x02": "2010-013B"
+        }
+    },
+    "function-setting-user-select-020": {
+        "name": "WeeklyTimer",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0140",
+            "0x02": "2010-0145"
+        }
+    },
+    "function-setting-user-select-022": {
+        "name": "HolidayMode",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-014A",
+            "0x02": "2010-014F"
+        }
+    },
+    "function-setting-user-select-023": {
+        "name": "HolidayModeHeatShiftTemp",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-024": {
+        "name": "HolidayModeTankShiftTemp",
+        "kind": "placeholder"
+    },
+    "function-setting-user-select-026": {
+        "name": "QuietTimer",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0168",
+            "0x02": "2010-016D"
+        }
+    },
+    "function-setting-user-select-028": {
+        "name": "QuietMode",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0172",
+            "0x02": "2010-0177",
+            "0x03": "2010-017C",
+            "0x04": "2010-0181"
+        }
+    },
+    "function-setting-user-select-030": {
+        "name": "RoomHeater",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0186",
+            "0x02": "2010-018B"
+        }
+    },
+    "function-setting-user-select-032": {
+        "name": "TankHeater",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0190",
+            "0x02": "2010-0195"
+        }
+    },
+    "function-setting-user-select-034": {
+        "name": "Sterilization",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-019A"
+        }
+    },
+    "function-setting-user-select-035": {
+        "name": "TankSensor",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-0197",
+            "0x02": "2010-0198"
+        }
+    },
+    "function-setting-user-select-036": {
+        "name": "Powerful",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-01A4",
+            "0x02": "2010-01A9",
+            "0x03": "2010-01AE",
+            "0x04": "2010-01B3"
+        }
+    },
+    "function-setting-user-select-038": {
+        "name": "ForceHeater",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-01B8",
+            "0x02": "2010-01BD"
+        }
+    },
+    "function-setting-user-select-040": {
+        "name": "ForceDefrost",
+        "kind": "basic",
+        "values": {
+            "0x01": "2010-01C2"
+        }
+    }
 }
-    

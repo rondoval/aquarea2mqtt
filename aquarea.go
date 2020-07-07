@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -20,6 +18,12 @@ import (
 
 const translationFile = "translation.json"
 
+type functionDescription struct {
+	Name   string            `json:"name"`
+	Kind   string            `json:"kind"`
+	Values map[string]string `json:"values"`
+}
+
 type aquarea struct {
 	AquareaServiceCloudURL      string
 	AquareaSmartCloudURL        string
@@ -31,8 +35,8 @@ type aquarea struct {
 	httpClient      http.Client
 	dictionaryWebUI map[string]string // xxxx-yyyy codes translation
 	usersMap        map[string]aquareaEndUserJSON
-	translation     map[string]string // function name meaning
-	logItems        []string          // table with names of log items (statistics view)
+	translation     map[string]functionDescription // function name meaning
+	logItems        []string                       // table with names of log items (statistics view)
 }
 
 func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan map[string]string) {
@@ -137,7 +141,7 @@ func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON) (map[string]string,
 	for key, val := range r.StatusDataInfo {
 		name := key
 		if _, ok := aq.translation[key]; ok {
-			name = aq.translation[key]
+			name = aq.translation[key].Name
 		}
 		var value string
 		switch val.Type {
@@ -158,6 +162,15 @@ func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 		return err
 	}
 	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionStatus", nil)
+	if err != nil {
+		return err
+	}
+	err = aq.extractDictionary(body)
+	if err != nil {
+		return err
+	}
+
+	body, err = aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionSetting", nil)
 	if err != nil {
 		return err
 	}
@@ -420,89 +433,33 @@ func (aq *aquarea) httpGet(url string) ([]byte, error) {
 	return b, err
 }
 
-func (aq *aquarea) makeChangeHeatingTemperatureJSON(eui string, zoneid int, setpoint int) {
-	eu := aq.usersMap[eui]
+// Settings panel
+func (aq *aquarea) sendSetting(user aquareaEndUserJSON, name, value string) error {
+	//	values := make(url.Values)
+	//	values["var.deviceId"] = []string{ user.DeviceID }
+	//	values["var.preOperation"] = getBackgroundDataValue("0x80")
+	//	values["var.preMode"] = getBackgroundDataValue("0xE0")
+	//	values["var.preTank"] = getBackgroundDataValue("0xE1")
 
-	setParam := aquareaSetParamJSON{
-		Status: []aquareaStatusTypeJSON{
-			{
-				DeviceGUID: eu.DeviceID,
-				ZoneStatus: []aquareaZoneStatusJSON{
-					{
-						HeatSet: setpoint,
-						ZoneID:  zoneid,
-					},
-				},
-			},
-		},
-	}
+	//	if value == "----" {
+	//		return nil
+	//	}
+	// translate from MQTT name to func-set-user-select-xxx
+	// translate to userSelectxxx
 
-	PAYLOAD, err := json.Marshal(setParam)
-	if err != nil {
-		return
-	}
-	aq.setUserOption(eui, string(PAYLOAD))
-}
+	//	values["var." + name] = []string{value}
 
-// funkcja tylko do testow writow
-func (aq *aquarea) setUserOption(eui string, payload string) error {
-	eu := aq.usersMap[eui]
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
+	//	_, err := aq.getEndUserShiesuahruefutohkun(user)
+	//	_, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
+	//	if err != nil {
+	//		return err
+	//	}
 
-	var AQCSR aquareaServiceCloudSSOReponseJSON
-
-	_, err = aq.httpClient.Get(aq.AquareaServiceCloudURL + "enduser/confirmStep1Policy")
-	CreateSSOUrl := aq.AquareaServiceCloudURL + "/enduser/api/request/create/sso"
-	uv := url.Values{
-		"var.gwUid":           {eu.GwUID},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-	}
-	body, err := aq.httpPost(CreateSSOUrl, uv)
-	err = json.Unmarshal(body, &AQCSR)
-	log.Println(err, body)
-
-	leadInstallerStep1url := aq.AquareaSmartCloudURL + "/remote/leadInstallerStep1"
-	uv = url.Values{
-		"var.keyCode": {AQCSR.SsoKey},
-	}
-	_, err = aq.httpPost(leadInstallerStep1url, uv)
-	ClaimSSOurl := aq.AquareaSmartCloudURL + "/remote/v1/api/auth/sso"
-	uv = url.Values{
-		"var.ssoKey": {AQCSR.SsoKey},
-	}
-	_, err = aq.httpPost(ClaimSSOurl, uv)
-	a2wStatusDisplayurl := aq.AquareaSmartCloudURL + "/remote/a2wStatusDisplay"
-	uv = url.Values{}
-	_, err = aq.httpPost(a2wStatusDisplayurl, uv)
-	_, err = aq.httpClient.Get(aq.AquareaSmartCloudURL + "/service-worker.js")
-	url := aq.AquareaSmartCloudURL + "/remote/v1/api/devices/" + eu.DeviceID
-
-	//var jsonStr = []byte(`{"status":[{"deviceGuid":"008007B767718332001434545313831373030634345373130434345373138313931304300000000","zoneStatus":[{"zoneId":1,"heatSet":25}]}]}`)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-	req.Header.Set("Referer", aq.AquareaSmartCloudURL+"/remote/a2wControl")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9,pl;q=0.8,zh;q=0.7")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
-	req.Header.Set("Origin", aq.AquareaSmartCloudURL)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := aq.httpClient.Do(req)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	if resp.StatusCode != 200 {
-		return errors.New(http.StatusText(resp.StatusCode))
-	}
+	//TODO usec check api to confirm settings are applied
 	return nil
 }
 
 func (aq *aquarea) testingSettings(user aquareaEndUserJSON) (map[string]string, error) {
-	//https://aquarea-service.panasonic.com/installer/functionSetting
-	//dictionary - jsonMessage
-	// TODO
-
 	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
 	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/get", url.Values{
 		"var.deviceId":        {user.DeviceID},
@@ -517,7 +474,6 @@ func (aq *aquarea) testingSettings(user aquareaEndUserJSON) (map[string]string, 
 		fmt.Println(err)
 		return nil, err
 	}
-	fmt.Println(aquareaSettings)
 
 	settings := make(map[string]string)
 	settings["EnduserID"] = user.Gwid
@@ -526,24 +482,27 @@ func (aq *aquarea) testingSettings(user aquareaEndUserJSON) (map[string]string, 
 		if !strings.Contains(key, "user") {
 			continue
 		}
-		name := key
 		if _, ok := aq.translation[key]; ok {
-			name = aq.translation[key]
-		}
-		var value string
-		switch val.Type {
-		case "basic-text":
-			value = aq.dictionaryWebUI[val.TextValue]
-		case "select":
-			i, _ := strconv.ParseInt(val.SelectedValue, 0, 16)
-			if i > 127 {
-				i -= 256
+			translation := aq.translation[key]
+			var value string
+			switch val.Type {
+			case "basic-text":
+				// not used in user settings
+				value = aq.dictionaryWebUI[val.TextValue]
+			case "select":
+				switch translation.Kind {
+				case "basic":
+					value = aq.dictionaryWebUI[translation.Values[val.SelectedValue]]
+				case "placeholder":
+					i, _ := strconv.ParseInt(val.SelectedValue, 0, 16)
+					value = fmt.Sprintf("%d", i-128)
+				}
+			case "placeholder-text":
+				// not used in user settings
+				value = val.Placeholder // + val.Params
 			}
-			value = fmt.Sprintf("%d", i)
-		case "placeholder-text":
-			value = val.Placeholder // + val.Params
+			settings[fmt.Sprintf("settings/%s", translation.Name)] = value
 		}
-		settings[fmt.Sprintf("settings/%s", name)] = value
 	}
 	return settings, err
 }
