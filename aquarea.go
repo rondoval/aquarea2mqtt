@@ -535,8 +535,10 @@ func (aq *aquarea) testingSettings(user aquareaEndUserJSON) (map[string]string, 
 		case "basic-text":
 			value = aq.dictionaryWebUI[val.TextValue]
 		case "select":
-			//TODO
-			i, _ := strconv.ParseInt(val.SelectedValue, 0, 8)
+			i, _ := strconv.ParseInt(val.SelectedValue, 0, 16)
+			if i > 127 {
+				i -= 256
+			}
 			value = fmt.Sprintf("%d", i)
 		case "placeholder-text":
 			value = val.Placeholder // + val.Params
