@@ -84,7 +84,7 @@
         "name":  "RoomHeaterCapacity"
     },
     "function-status-text-065": {
-        "name":  "RoomHeateOperatingTime"
+        "name":  "RoomHeaterOperatingTime"
     },
     "function-status-text-068": {
         "name":  "TankHeaterOperatingTime"

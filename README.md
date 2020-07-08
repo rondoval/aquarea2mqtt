@@ -1,9 +1,9 @@
 # Aquarea2mqtt
-Wrapper for Panasonic Aquarea Service Cloud to MQTT for a smart home integration like Home-Assistant (or for some machine learning)
+Panasonic Aquarea Service Cloud to MQTT gateway. Intended for Home Assistant integration, though not quite there yet.
 
 
 Configuration 
-rename config.example to config
+Create config.json file based on config.example.json.
 
 values: 
 
@@ -12,61 +12,23 @@ AquareaServiceCloudURL="https://aquarea-service.panasonic.com/" < base URL for a
 AquareaSmartCloudURL="https://aquarea-smart.panasonic.com/" < base URL for aquarea Smart Cloud
 AquareaServiceCloudLogin="" < Aquarea Service Cloud login !!! it's not the same like for a smart cloud!!
 AquareaServiceCloudPassword="" < Aquarea Service Cloud password !!! it's not the same like for a smart cloud!!
-AquateaTimeout=4 < timeout to wait for a aquarea response in seconds
+AquateaTimeout="4s" < time to wait for Auarea response
 MqttServer="" 
-MqttPort="1883"
+MqttPort=1883
 MqttLogin="test"
 MqttPass="testpass"
 MqttClientID="aquarea-test-pub"
-MqttKeepalive=60  < in seconds 
-PoolInterval=2 < in seconds 
-LogSecOffset=2550 <number of seconds for searching last statistic information from aqwuarea service cloud
+MqttKeepalive="60s"  < MQTT keepalive timeour
+PoolInterval="20s" < Update interval(from Aquarea service)
+LogSecOffset=500 <number of seconds for searching last statistic information from Aquarea Service Cloud
 ```
 
 
 published topics :
-
-	EnduserID                         string
-	RunningStatus                     string
-	WorkingMode                       string
-	WaterInleet                       string
-	WaterOutleet                      string
-	Zone1ActualTemperature            string
-	Zone1SetpointTemperature          string
-	Zone1WaterTemperature             string
-	Zone2ActualTemperature            string
-	Zone2SetpointTemperature          string
-	Zone2WaterTemperature             string
-	DailyWaterTankActualTemperature   string
-	DailyWaterTankSetpointTemperature string
-	BufferTankTemperature             string
-	OutdoorTemperature                string
-	CompressorStatus                  string
-	WaterFlow                         string
-	PumpSpeed                         string
-	HeatDirection                     string
-	RoomHeaterStatus                  string
-	DailyWaterHeaterStatus            string
-	DefrostStatus                     string
-	SolarStatus                       string
-	SolarTemperature                  string
-	BiMode                            string
-	ErrorStatus                       string
-	CompressorFrequency               string
-	Runtime                           string
-	RunCount                          string
-	RoomHeaterPerformance             string
-	RoomHeaterRunTime                 string
-	DailyWaterHeaterRunTime           string
-  
-  
-  
-  
-  you should know you'r device ID from aquarea service cloud
-  
-  ![Image of aquarea](docs/aquareaConfig.png)
-  
-  home assistant config examples:
+- pretty much everything from Device informatio, Statistics and User settings  
+   
+ 
+  home assistant config examples (outdated):
   
   ```
 
@@ -96,16 +58,5 @@ sensor:
 
 
 TODO:
-
-
-
 	- Test on ServiceCloud  with more than one heatpump
-	
 	- test with heatpump equiped with option board etc
-	
-	- add auto download of dictionary in TranslateCodeToString
-	
-	- general code optymalization and cleaning
-	
-	- writing some other parameters (tank temperature etc) 
-	
