@@ -38,12 +38,13 @@ type aquarea struct {
 	logSecOffset                int64
 	dataChannel                 chan map[string]string
 
-	httpClient      http.Client
-	dictionaryWebUI map[string]string                     // xxxx-yyyy codes translation
-	usersMap        map[string]aquareaEndUserJSON         // list of users (devices) linked to an account
-	translation     map[string]aquareaFunctionDescription // function name meaning
-	logItems        []string                              // table with names of log items (statistics view)
-	aquareaSettings aquareaFunctionSettingGetJSON         // needs be cached, contains info relevant for changing settings
+	httpClient         http.Client
+	dictionaryWebUI    map[string]string                     // xxxx-yyyy codes translation
+	usersMap           map[string]aquareaEndUserJSON         // list of users (devices) linked to an account
+	translation        map[string]aquareaFunctionDescription // function name meaning
+	reverseTranslation map[string]string                     // map of friendly names to Aquarea meaningless ones
+	logItems           []string                              // table with names of log items (statistics view)
+	aquareaSettings    aquareaFunctionSettingGetJSON         // needs be cached, contains info relevant for changing settings
 }
 
 func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
@@ -64,6 +65,16 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 	err = json.Unmarshal(data, &aquareaInstance.translation)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// create reverse map i.e. aquareaFunctionDescription.Name to key
+	aquareaInstance.reverseTranslation = make(map[string]string)
+	for key, value := range aquareaInstance.translation {
+		if strings.Contains(key, "setting-user-select") {
+			// can't do a reverse map of everything as there are duplicates
+			//TODO include parent topic name?
+			aquareaInstance.reverseTranslation[value.Name] = key
+		}
 	}
 
 	poolInterval, err := time.ParseDuration(config.PoolInterval)
@@ -314,7 +325,7 @@ func (aq *aquarea) aquareaInstallerHome() error {
 	}
 
 	for _, user := range endUsersList.Endusers {
-		aq.usersMap[user.GwUID] = user
+		aq.usersMap[user.Gwid] = user
 	}
 	aq.getDictionary(endUsersList.Endusers[0])
 
@@ -455,25 +466,56 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 		return nil
 	}
 
-	//TODO translate from MQTT name to func-set-user-select-xxx
-	// translate to userSelectxxx
-
-	//	values["var." + name] = []string{value}
-
-	user := aq.usersMap[cmd.deviceID]
-	values := url.Values{
-		"var.deviceId":     {user.DeviceID},
-		"var.preOperation": {aq.aquareaSettings.SettingsBackgroundData["0x80"].Value},
-		"var.preMode":      {aq.aquareaSettings.SettingsBackgroundData["0xE0"].Value},
-		"var.preTank":      {aq.aquareaSettings.SettingsBackgroundData["0xE1"].Value},
+	fmt.Println(cmd)
+	name := strings.ReplaceAll(aq.reverseTranslation[cmd.setting], "function-setting-user-select-", "userSelect")
+	functionInfo := aq.translation[aq.reverseTranslation[cmd.setting]]
+	switch functionInfo.Kind {
+	case "basic":
+		//TODO ugly
+		for k, v := range aq.dictionaryWebUI {
+			if cmd.value == v {
+				cmd.value = k
+				break
+			}
+		}
+		for k, v := range functionInfo.Values {
+			if cmd.value == v {
+				cmd.value = k
+				break
+			}
+		}
+	case "placeholder":
+		i, _ := strconv.ParseInt(cmd.value, 0, 16)
+		if !strings.Contains(cmd.setting, "HolidayMode") {
+			//TODO this is not true for all values
+			i += 128
+		}
+		cmd.value = fmt.Sprintf("%X", i)
 	}
 
-	_, err := aq.getEndUserShiesuahruefutohkun(user)
+	user := aq.usersMap[cmd.deviceID]
+	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
+	//	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/functionSetting", url.Values{})
+	//	fmt.Println(string(body))
 	if err != nil {
 		return err
 	}
-	_, err = aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
 
+	values := url.Values{
+		"var.deviceId":        {user.DeviceID},
+		"var.preOperation":    {aq.aquareaSettings.SettingsBackgroundData["0x80"].Value},
+		"var.preMode":         {aq.aquareaSettings.SettingsBackgroundData["0xE0"].Value},
+		"var.preTank":         {aq.aquareaSettings.SettingsBackgroundData["0xE1"].Value},
+		"var." + name:         {cmd.value},
+		"shiesuahruefutohkun": {shiesuahruefutohkun},
+	}
+	fmt.Println(values)
+
+	fmt.Println("sending")
+	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
+	fmt.Println("done")
+	fmt.Println(string(b))
+	fmt.Println(err)
 	//TODO usec check api to confirm settings are applied
 	return err
 }

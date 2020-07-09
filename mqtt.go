@@ -76,9 +76,6 @@ func (am *aquareaMQTT) publish(data map[string]string) {
 
 	for key, value := range data {
 		topic := fmt.Sprintf("aquarea/%s/%s", deviceID, key)
-		value = strings.ToUpper(strings.TrimSpace(value))
-		fmt.Println(topic, ":", value)
-
 		token := am.mqttClient.Publish(topic, byte(0), true, value)
 		if token.Wait() && token.Error() != nil {
 			fmt.Printf("Fail to publish, %v", token.Error())
