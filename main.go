@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-const configFile = "config.json"
+const configFile = "/data/options.json"
 
 type configType struct {
 	AquareaServiceCloudURL      string
