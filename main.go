@@ -10,7 +10,6 @@ const configFile = "config.json"
 
 type configType struct {
 	AquareaServiceCloudURL      string
-	AquareaSmartCloudURL        string
 	AquareaServiceCloudLogin    string
 	AquareaServiceCloudPassword string
 	AquareaTimeout              string
@@ -41,6 +40,7 @@ func readConfig() configType {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	config := readConfig()
 
 	dataChannel := make(chan map[string]string, 10)

@@ -1,6 +1,5 @@
 {
   "AquareaServiceCloudURL": "https://aquarea-service.panasonic.com/",
-  "AquareaSmartCloudURL": "https://aquarea-smart.panasonic.com/",
   "AquareaServiceCloudLogin": "",
   "AquareaServiceCloudPassword": "",
   "AquareaTimeout": "4s",

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/md5"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -32,7 +30,6 @@ type aquareaFunctionDescription struct {
 
 type aquarea struct {
 	AquareaServiceCloudURL      string
-	AquareaSmartCloudURL        string
 	AquareaServiceCloudLogin    string
 	AquareaServiceCloudPassword string
 	logSecOffset                int64
@@ -48,34 +45,16 @@ type aquarea struct {
 }
 
 func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
+	log.Println("Starting Aquarea Service Cloud handler")
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
-	aquareaInstance.AquareaSmartCloudURL = config.AquareaSmartCloudURL
 	aquareaInstance.AquareaServiceCloudLogin = config.AquareaServiceCloudLogin
 	aquareaInstance.AquareaServiceCloudPassword = config.AquareaServiceCloudPassword
 	aquareaInstance.logSecOffset = config.LogSecOffset
 	aquareaInstance.dataChannel = dataChannel
 	aquareaInstance.usersMap = make(map[string]aquareaEndUserJSON)
 
-	// Load JSON with translations from Aquarea cryptic names
-	data, err := ioutil.ReadFile(translationFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = json.Unmarshal(data, &aquareaInstance.translation)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// create reverse map i.e. aquareaFunctionDescription.Name to key
-	aquareaInstance.reverseTranslation = make(map[string]string)
-	for key, value := range aquareaInstance.translation {
-		if strings.Contains(key, "setting-user-select") {
-			// can't do a reverse map of everything as there are duplicates
-			//TODO include parent topic name?
-			aquareaInstance.reverseTranslation[value.Name] = key
-		}
-	}
+	aquareaInstance.loadTranslations(translationFile)
 
 	poolInterval, err := time.ParseDuration(config.PoolInterval)
 	if err != nil {
@@ -93,6 +72,7 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 		Timeout:   timeout,
 	}
 
+	log.Println("Attempting to log in to Aquarea Service Cloud")
 	for !aquareaInstance.aquareaSetup() {
 		//TODO robustness. What if logs out while running
 	}
@@ -110,100 +90,54 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 
 }
 
-func (aq *aquarea) aquareaSetup() bool {
-	err := aq.aquareaLogin()
+func (aq *aquarea) loadTranslations(filename string) {
+	// Load JSON with translations from Aquarea cryptic names
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Println(err)
-		return false
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(data, &aq.translation)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	err = aq.aquareaInstallerHome()
-	if err != nil {
-		log.Println(err)
-		return false
+	// create reverse map i.e. aquareaFunctionDescription.Name to key
+	aq.reverseTranslation = make(map[string]string)
+	for key, value := range aq.translation {
+		if strings.Contains(key, "setting-user-select") {
+			// can't do a reverse map of everything as there are duplicates
+			// besides, we need it for settings only
+			aq.reverseTranslation[value.Name] = key
+		}
 	}
-	return true
 }
 
 func (aq *aquarea) feedDataFromAquarea() {
 	for _, user := range aq.usersMap {
+		// Get settings from the device
 		settings, err := aq.receiveSettings(user)
-		aq.dataChannel <- settings
+		if err != nil {
+			log.Println(err)
+		} else {
+			aq.dataChannel <- settings
+		}
 
 		// Send device status
 		deviceStatus, err := aq.parseDeviceStatus(user)
 		if err != nil {
 			log.Println(err)
-			return
+		} else {
+			aq.dataChannel <- deviceStatus
 		}
-		aq.dataChannel <- deviceStatus
 
 		// Send device logs
 		logData, err := aq.getDeviceLogInformation(user)
 		if err != nil {
 			log.Println(err)
-			return
+		} else {
+			aq.dataChannel <- logData
 		}
-		aq.dataChannel <- logData
 	}
-}
-
-func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON) (map[string]string, error) {
-	r, err := aq.getDeviceStatus(user)
-	deviceStatus := make(map[string]string)
-	deviceStatus["EnduserID"] = user.Gwid
-
-	for key, val := range r.StatusDataInfo {
-		name := key
-		if _, ok := aq.translation[key]; ok {
-			name = aq.translation[key].Name
-		}
-		var value string
-		switch val.Type {
-		case "basic-text":
-			value = aq.dictionaryWebUI[val.TextValue]
-		case "simple-value":
-			value = val.Value
-		}
-		deviceStatus[fmt.Sprintf("state/%s", name)] = value
-
-	}
-	return deviceStatus, err
-}
-
-func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
-	_, err := aq.getEndUserShiesuahruefutohkun(user)
-	if err != nil {
-		return err
-	}
-	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionStatus", nil)
-	if err != nil {
-		return err
-	}
-	err = aq.extractDictionary(body)
-	if err != nil {
-		return err
-	}
-
-	body, err = aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionSetting", nil)
-	if err != nil {
-		return err
-	}
-	err = aq.extractDictionary(body)
-	if err != nil {
-		return err
-	}
-
-	body, err = aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionStatistics", nil)
-	if err != nil {
-		return err
-	}
-	err = aq.extractDictionary(body)
-	if err != nil {
-		return err
-	}
-	err = aq.extractLogItems(body)
-	return err
 }
 
 func (aq *aquarea) getShiesuahruefutohkun(url string) (string, error) {
@@ -214,6 +148,7 @@ func (aq *aquarea) getShiesuahruefutohkun(url string) (string, error) {
 	return aq.extractShiesuahruefutohkun(body)
 }
 
+//TODO try to minimize number of requests
 func (aq *aquarea) getEndUserShiesuahruefutohkun(user aquareaEndUserJSON) (string, error) {
 	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/functionUserInformation", url.Values{
 		"var.functionSelectedGwUid": {user.GwUID},
@@ -225,354 +160,10 @@ func (aq *aquarea) getEndUserShiesuahruefutohkun(user aquareaEndUserJSON) (strin
 }
 
 func (aq *aquarea) extractShiesuahruefutohkun(body []byte) (string, error) {
-	re, err := regexp.Compile(`const shiesuahruefutohkun = '(.+)'`)
-	if err != nil {
-		return "", err
-	}
-
+	re := regexp.MustCompile(`const shiesuahruefutohkun = '(.+)'`)
 	ss := re.FindStringSubmatch(string(body))
 	if len(ss) > 0 {
 		return ss[1], nil
 	}
 	return "", fmt.Errorf("Could not extract shiesuahruefutohkun")
-}
-
-func (aq *aquarea) extractDictionary(body []byte) error {
-	dictionaryRegexp, err := regexp.Compile(`const jsonMessage = eval\('\((.+)\)'`)
-	dictionaryJSON := dictionaryRegexp.FindStringSubmatch(string(body))
-	if len(dictionaryJSON) > 0 {
-		result := strings.Replace(dictionaryJSON[1], "\\", "", -1)
-		err = json.Unmarshal([]byte(result), &aq.dictionaryWebUI)
-	}
-	return err
-}
-
-func (aq *aquarea) extractLogItems(body []byte) error {
-	// We also need a table with statistic names
-	logItemsRegexp, err := regexp.Compile(`var logItems = \$\.parseJSON\('(.+)'\);`)
-	logItemsJSON := logItemsRegexp.FindStringSubmatch(string(body))
-	if len(logItemsJSON) > 0 {
-		err = json.Unmarshal([]byte(logItemsJSON[1]), &aq.logItems)
-	}
-
-	for key, val := range aq.logItems {
-		aq.logItems[key] = strings.ReplaceAll(aq.dictionaryWebUI[val], "/", "\\")
-	}
-	return err
-}
-
-func (aq *aquarea) aquareaLogin() error {
-	shiesuahruefutohkun, err := aq.getShiesuahruefutohkun(aq.AquareaServiceCloudURL)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	data := []byte(aq.AquareaServiceCloudLogin + aq.AquareaServiceCloudPassword)
-	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"installer/api/auth/login", url.Values{
-		"var.loginId":         {aq.AquareaServiceCloudLogin},
-		"var.password":        {fmt.Sprintf("%x", md5.Sum(data))},
-		"var.inputOmit":       {"false"},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-	})
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	var loginStruct aquareaLoginJSON
-	err = json.Unmarshal(b, &loginStruct)
-
-	if loginStruct.ErrorCode != 0 {
-		err = fmt.Errorf("%d", loginStruct.ErrorCode)
-	}
-	return err
-}
-
-func (aq *aquarea) aquareaInstallerHome() error {
-
-	body, err := aq.httpGet(aq.AquareaServiceCloudURL + "installer/home")
-	shiesuahruefutohkun, err := aq.extractShiesuahruefutohkun(body)
-	if err != nil {
-		return err
-	}
-	err = aq.extractDictionary(body)
-	if err != nil {
-		return err
-	}
-
-	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/endusers", url.Values{
-		"var.name":            {""},
-		"var.deviceId":        {""},
-		"var.idu":             {""},
-		"var.odu":             {""},
-		"var.sortItem":        {"userName"},
-		"var.sortOrder":       {"0"},
-		"var.offset":          {"0"},
-		"var.limit":           {"999"},
-		"var.mapSizeX":        {"0"},
-		"var.mapSizeY":        {"0"},
-		"var.readNew":         {"1"},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-	})
-	if err != nil {
-		return err
-	}
-	var endUsersList aquareaEndUsersListJSON
-	err = json.Unmarshal(b, &endUsersList)
-	if err != nil {
-		return err
-	}
-
-	for _, user := range endUsersList.Endusers {
-		aq.usersMap[user.Gwid] = user
-	}
-	aq.getDictionary(endUsersList.Endusers[0])
-
-	return err
-}
-
-func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusResponseJSON, error) {
-
-	var aquareaStatusResponse aquareaStatusResponseJSON
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
-
-	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/status", url.Values{
-		"var.deviceId":        {user.DeviceID},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-	})
-	if err != nil {
-		return aquareaStatusResponse, err
-
-	}
-	err = json.Unmarshal(b, &aquareaStatusResponse)
-	return aquareaStatusResponse, err
-}
-
-func (aq *aquarea) getDeviceLogInformation(eu aquareaEndUserJSON) (map[string]string, error) {
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(eu)
-	valueList := "{\"logItems\":["
-	for i := range aq.logItems {
-		valueList += fmt.Sprintf("%d,", i)
-	}
-	valueList += "]}"
-
-	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/data/log", url.Values{
-		"var.deviceId":        {eu.DeviceID},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-		"var.target":          {"0"},
-		"var.startDate":       {fmt.Sprintf("%d000", time.Now().Unix()-aq.logSecOffset)},
-		"var.logItems":        {valueList},
-	})
-	if err != nil {
-		return nil, err
-	}
-	var aquareaLogData aquareaLogDataJSON
-	err = json.Unmarshal(b, &aquareaLogData)
-	if err != nil {
-		return nil, err
-	}
-
-	var deviceLog map[int64][]string
-	err = json.Unmarshal([]byte(aquareaLogData.LogData), &deviceLog)
-	if err != nil {
-		return nil, err
-	}
-	if len(deviceLog) < 1 {
-		// no data in log
-		return nil, nil
-	}
-
-	// we're interested in the most recent snapshot only
-	var lastKey int64 = 0
-	for k := range deviceLog {
-		if lastKey < k {
-			lastKey = k
-		}
-	}
-
-	unitRegexp, err := regexp.Compile(`(.+)\[(.+)\]`)
-
-	stats := make(map[string]string)
-	for i, val := range deviceLog[lastKey] {
-		split := unitRegexp.FindStringSubmatch(aq.logItems[i])
-
-		topic := "log/" + strings.ReplaceAll(strings.Title(split[1]), " ", "")
-		stats[topic+"/unit"] = split[2]
-		stats[topic] = val
-	}
-	stats["log/Timestamp"] = fmt.Sprintf("%d", lastKey)
-	stats["log/CurrentError"] = fmt.Sprintf("%d", aquareaLogData.ErrorCode)
-	stats["EnduserID"] = eu.Gwid
-	return stats, nil
-}
-
-// Posts data to Aquarea web service
-func (aq *aquarea) httpPost(url string, urlValues url.Values) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(urlValues.Encode()))
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
-	req.Header.Set("Cache-Control", "max-age=0")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := aq.httpClient.Do(req)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	b, err := ioutil.ReadAll(resp.Body)
-	return b, err
-}
-
-func (aq *aquarea) httpGet(url string) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
-	req.Header.Set("Cache-Control", "max-age=0")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
-
-	resp, err := aq.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	b, err := ioutil.ReadAll(resp.Body)
-	return b, err
-}
-
-// Settings panel
-func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
-	if cmd.value == "----" {
-		log.Println("Dummy value not set")
-		return nil
-	}
-	if len(aq.aquareaSettings.SettingsBackgroundData) == 0 {
-		log.Println("Background data not received yet")
-		//TODO should we cache the request?
-		return nil
-	}
-
-	fmt.Println(cmd)
-	name := strings.ReplaceAll(aq.reverseTranslation[cmd.setting], "function-setting-user-select-", "userSelect")
-	functionInfo := aq.translation[aq.reverseTranslation[cmd.setting]]
-	switch functionInfo.Kind {
-	case "basic":
-		//TODO ugly
-		for k, v := range aq.dictionaryWebUI {
-			if cmd.value == v {
-				cmd.value = k
-				break
-			}
-		}
-		for k, v := range functionInfo.Values {
-			if cmd.value == v {
-				cmd.value = k
-				break
-			}
-		}
-	case "placeholder":
-		i, _ := strconv.ParseInt(cmd.value, 0, 16)
-		if !strings.Contains(cmd.setting, "HolidayMode") {
-			//TODO this is not true for all values
-			i += 128
-		}
-		cmd.value = fmt.Sprintf("%X", i)
-	}
-
-	user := aq.usersMap[cmd.deviceID]
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
-	//	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/functionSetting", url.Values{})
-	//	fmt.Println(string(body))
-	if err != nil {
-		return err
-	}
-
-	values := url.Values{
-		"var.deviceId":        {user.DeviceID},
-		"var.preOperation":    {aq.aquareaSettings.SettingsBackgroundData["0x80"].Value},
-		"var.preMode":         {aq.aquareaSettings.SettingsBackgroundData["0xE0"].Value},
-		"var.preTank":         {aq.aquareaSettings.SettingsBackgroundData["0xE1"].Value},
-		"var." + name:         {cmd.value},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-	}
-	fmt.Println(values)
-
-	fmt.Println("sending")
-	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
-	fmt.Println("done")
-	fmt.Println(string(b))
-	fmt.Println(err)
-	//TODO usec check api to confirm settings are applied
-	return err
-}
-
-func (aq *aquarea) receiveSettings(user aquareaEndUserJSON) (map[string]string, error) {
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
-	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/get", url.Values{
-		"var.deviceId":        {user.DeviceID},
-		"shiesuahruefutohkun": {shiesuahruefutohkun},
-	})
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(b, &aq.aquareaSettings)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	settings := make(map[string]string)
-	settings["EnduserID"] = user.Gwid
-
-	for key, val := range aq.aquareaSettings.SettingDataInfo {
-		if !strings.Contains(key, "user") {
-			continue
-		}
-		if _, ok := aq.translation[key]; ok {
-			translation := aq.translation[key]
-			var value string
-			switch val.Type {
-			case "basic-text":
-				// not used in user settings
-				value = aq.dictionaryWebUI[val.TextValue]
-			case "select":
-				switch translation.Kind {
-				case "basic":
-					value = aq.dictionaryWebUI[translation.Values[val.SelectedValue]]
-					//TODO post possible values to a subtopic
-					var allOptions string
-					for _, option := range translation.Values {
-						allOptions += aq.dictionaryWebUI[option] + "\n"
-					}
-					settings[fmt.Sprintf("settings/%s/options", translation.Name)] = allOptions
-				case "placeholder":
-					i, _ := strconv.ParseInt(val.SelectedValue, 0, 16)
-					if !strings.Contains(translation.Name, "HolidayMode") {
-						//TODO this is not true for all values
-						i -= 128
-					}
-					value = fmt.Sprintf("%d", i)
-				}
-			case "placeholder-text":
-				// not used in user settings
-				value = val.Placeholder // + val.Params
-			}
-			settings[fmt.Sprintf("settings/%s", translation.Name)] = value
-		}
-	}
-	return settings, err
 }

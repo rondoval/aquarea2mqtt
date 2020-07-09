@@ -21,10 +21,10 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 		log.Fatal(err)
 	}
 
-	//TODO publish home assistant compatible setup
 	var mqttInstance aquareaMQTT
 	mqttInstance.commandChannel = commandChannel
 	mqttInstance.makeMQTTConn(config.MqttServer, config.MqttPort, config.MqttLogin, config.MqttPass, config.MqttClientID, mqttKeepalive)
+	mqttInstance.advertiseHomeAssistantConfig()
 
 	for {
 		select {
@@ -35,6 +35,7 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 }
 
 func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, mqttPass, mqttClientID string, mqttKeepalive time.Duration) {
+	log.Println("Connecting to MQTT broker")
 	//set MQTT options
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("%s://%s:%v", "tcp", mqttServer, mqttPort))
@@ -57,6 +58,10 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 		log.Fatalf("Fail to connect broker, %v", token.Error())
 	}
 	log.Println("MQTT connected")
+}
+
+func (am *aquareaMQTT) advertiseHomeAssistantConfig() {
+	//TODO
 }
 
 func (am *aquareaMQTT) handleSubscription(mclient mqtt.Client, msg mqtt.Message) {
