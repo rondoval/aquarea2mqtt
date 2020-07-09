@@ -11,12 +11,7 @@ import (
 )
 
 // Gets most recent data from the statistics page
-func (aq *aquarea) getDeviceLogInformation(user aquareaEndUserJSON) (map[string]string, error) {
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
-	if err != nil {
-		return nil, err
-	}
-
+func (aq *aquarea) getDeviceLogInformation(user aquareaEndUserJSON, shiesuahruefutohkun string) (map[string]string, error) {
 	// Build list of all possible values to log
 	var valueList strings.Builder
 	valueList.WriteString("{\"logItems\":[")

@@ -73,8 +73,7 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 	return err
 }
 
-func (aq *aquarea) receiveSettings(user aquareaEndUserJSON) (map[string]string, error) {
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
+func (aq *aquarea) receiveSettings(user aquareaEndUserJSON, shiesuahruefutohkun string) (map[string]string, error) {
 	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/get", url.Values{
 		"var.deviceId":        {user.DeviceID},
 		"shiesuahruefutohkun": {shiesuahruefutohkun},

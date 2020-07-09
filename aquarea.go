@@ -115,7 +115,13 @@ func (aq *aquarea) loadTranslations(filename string) {
 func (aq *aquarea) feedDataFromAquarea() {
 	for _, user := range aq.usersMap {
 		// Get settings from the device
-		settings, err := aq.receiveSettings(user)
+		shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		settings, err := aq.receiveSettings(user, shiesuahruefutohkun)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -123,7 +129,7 @@ func (aq *aquarea) feedDataFromAquarea() {
 		}
 
 		// Send device status
-		deviceStatus, err := aq.parseDeviceStatus(user)
+		deviceStatus, err := aq.parseDeviceStatus(user, shiesuahruefutohkun)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -131,7 +137,7 @@ func (aq *aquarea) feedDataFromAquarea() {
 		}
 
 		// Send device logs
-		logData, err := aq.getDeviceLogInformation(user)
+		logData, err := aq.getDeviceLogInformation(user, shiesuahruefutohkun)
 		if err != nil {
 			log.Println(err)
 		} else {
@@ -148,7 +154,6 @@ func (aq *aquarea) getShiesuahruefutohkun(url string) (string, error) {
 	return aq.extractShiesuahruefutohkun(body)
 }
 
-//TODO try to minimize number of requests
 func (aq *aquarea) getEndUserShiesuahruefutohkun(user aquareaEndUserJSON) (string, error) {
 	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/functionUserInformation", url.Values{
 		"var.functionSelectedGwUid": {user.GwUID},

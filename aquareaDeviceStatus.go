@@ -6,8 +6,8 @@ import (
 	"net/url"
 )
 
-func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON) (map[string]string, error) {
-	r, err := aq.getDeviceStatus(user)
+func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON, shiesuahruefutohkun string) (map[string]string, error) {
+	r, err := aq.getDeviceStatus(user, shiesuahruefutohkun)
 	if err != nil {
 		return nil, err
 	}
@@ -32,10 +32,8 @@ func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON) (map[string]string,
 	return deviceStatus, err
 }
 
-func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON) (aquareaStatusResponseJSON, error) {
-
+func (aq *aquarea) getDeviceStatus(user aquareaEndUserJSON, shiesuahruefutohkun string) (aquareaStatusResponseJSON, error) {
 	var aquareaStatusResponse aquareaStatusResponseJSON
-	shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
 
 	b, err := aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/status", url.Values{
 		"var.deviceId":        {user.DeviceID},
