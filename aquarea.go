@@ -23,9 +23,10 @@ type aquareaCommand struct {
 	value    string
 }
 type aquareaFunctionDescription struct {
-	Name   string            `json:"name"`
-	Kind   string            `json:"kind"`
-	Values map[string]string `json:"values"`
+	Name          string            `json:"name"`
+	Kind          string            `json:"kind"`
+	Values        map[string]string `json:"values"`
+	reverseValues map[string]string
 }
 
 type aquarea struct {
@@ -35,13 +36,14 @@ type aquarea struct {
 	logSecOffset                int64
 	dataChannel                 chan map[string]string
 
-	httpClient         http.Client
-	dictionaryWebUI    map[string]string                     // xxxx-yyyy codes translation
-	usersMap           map[string]aquareaEndUserJSON         // list of users (devices) linked to an account
-	translation        map[string]aquareaFunctionDescription // function name meaning
-	reverseTranslation map[string]string                     // map of friendly names to Aquarea meaningless ones
-	logItems           []string                              // table with names of log items (statistics view)
-	aquareaSettings    aquareaFunctionSettingGetJSON         // needs be cached, contains info relevant for changing settings
+	httpClient             http.Client
+	dictionaryWebUI        map[string]string                      // xxxx-yyyy codes translation to messages
+	reverseDictionaryWebUI map[string]string                      // message to xxxx-yyyy code translation
+	usersMap               map[string]aquareaEndUserJSON          // list of users (devices) linked to an account
+	translation            map[string]*aquareaFunctionDescription // function name meaning
+	reverseTranslation     map[string]string                      // map of friendly names to Aquarea meaningless ones
+	logItems               []string                               // table with names of log items (statistics view)
+	aquareaSettings        aquareaFunctionSettingGetJSON          // needs be cached, contains info relevant for changing settings
 }
 
 func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
@@ -101,6 +103,14 @@ func (aq *aquarea) loadTranslations(filename string) {
 		log.Fatal(err)
 	}
 
+	// add reverse Value translation
+	for kDescr, descr := range aq.translation {
+		aq.translation[kDescr].reverseValues = make(map[string]string)
+		for k, v := range descr.Values {
+			descr.reverseValues[v] = k
+		}
+	}
+
 	// create reverse map i.e. aquareaFunctionDescription.Name to key
 	aq.reverseTranslation = make(map[string]string)
 	for key, value := range aq.translation {
@@ -121,7 +131,7 @@ func (aq *aquarea) feedDataFromAquarea() {
 			continue
 		}
 
-		settings, err := aq.receiveSettings(user, shiesuahruefutohkun)
+		settings, err := aq.getDeviceSettings(user, shiesuahruefutohkun)
 		if err != nil {
 			log.Println(err)
 		} else {

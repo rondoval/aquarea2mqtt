@@ -127,6 +127,13 @@ func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 	if err != nil {
 		return err
 	}
+
+	// create reverse dictionary - required for changing settings
+	aq.reverseDictionaryWebUI = make(map[string]string)
+	for k, v := range aq.dictionaryWebUI {
+		aq.reverseDictionaryWebUI[v] = k
+	}
+
 	err = aq.extractLogItems(body)
 	return err
 }
