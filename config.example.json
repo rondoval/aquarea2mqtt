@@ -2,13 +2,13 @@
   "AquareaServiceCloudURL": "https://aquarea-service.panasonic.com/",
   "AquareaServiceCloudLogin": "",
   "AquareaServiceCloudPassword": "",
-  "AquareaTimeout": "4s",
+  "AquareaTimeout": "30s",
   "MqttServer": "",
   "MqttPort": 1883,
   "MqttLogin": "test",
   "MqttPass": "testpass",
   "MqttClientID": "aquarea-test-pub",
   "MqttKeepalive": "60s",
-  "PoolInterval": "10s",
+  "PoolInterval": "30s",
   "LogSecOffset": 500
 }
