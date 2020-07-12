@@ -76,7 +76,6 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 
 	log.Println("Attempting to log in to Aquarea Service Cloud")
 	for !aquareaInstance.aquareaSetup() {
-		//TODO robustness. What if logs out while running
 	}
 	log.Println("Logged in to Aquarea Service Cloud")
 
@@ -128,6 +127,8 @@ func (aq *aquarea) feedDataFromAquarea() {
 		shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
 		if err != nil {
 			log.Println(err)
+			// try to log in again
+			aq.aquareaSetup()
 			continue
 		}
 
