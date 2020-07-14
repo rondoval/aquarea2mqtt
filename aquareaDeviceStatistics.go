@@ -61,12 +61,11 @@ func (aq *aquarea) getDeviceLogInformation(user aquareaEndUserJSON, shiesuahruef
 	for i, val := range deviceLog[lastKey] {
 		split := unitRegexp.FindStringSubmatch(aq.logItems[i])
 
-		topic := "log/" + strings.ReplaceAll(strings.Title(split[1]), " ", "")
+		topic := fmt.Sprintf("aquarea/%s/log/", user.Gwid) + strings.ReplaceAll(strings.Title(split[1]), " ", "")
 		stats[topic+"/unit"] = split[2] // unit of the value, extracted from name
 		stats[topic] = val
 	}
-	stats["log/Timestamp"] = strconv.FormatInt(lastKey, 10)
-	stats["log/CurrentError"] = strconv.Itoa(aquareaLogData.ErrorCode)
-	stats["EnduserID"] = user.Gwid
+	stats[fmt.Sprintf("aquarea/%s/log/Timestamp", user.Gwid)] = strconv.FormatInt(lastKey, 10)
+	stats[fmt.Sprintf("aquarea/%s/log/CurrentError", user.Gwid)] = strconv.Itoa(aquareaLogData.ErrorCode)
 	return stats, nil
 }

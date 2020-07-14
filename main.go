@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"runtime"
 )
 
-const configFile = "/data/options.json"
+const configFileOther = "/data/options.json"
+const configFileWindows = "options.json"
 
 type configType struct {
 	AquareaServiceCloudURL      string
@@ -26,6 +28,12 @@ type configType struct {
 
 func readConfig() configType {
 	var config configType
+	var configFile string
+	if runtime.GOOS == "windows" {
+		configFile = configFileWindows
+	} else {
+		configFile = configFileOther
+	}
 
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {

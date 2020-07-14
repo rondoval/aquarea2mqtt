@@ -24,7 +24,6 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 	var mqttInstance aquareaMQTT
 	mqttInstance.commandChannel = commandChannel
 	mqttInstance.makeMQTTConn(config.MqttServer, config.MqttPort, config.MqttLogin, config.MqttPass, config.MqttClientID, mqttKeepalive)
-	mqttInstance.advertiseHomeAssistantConfig()
 
 	for {
 		select {
@@ -60,10 +59,6 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 	log.Println("MQTT connected")
 }
 
-func (am *aquareaMQTT) advertiseHomeAssistantConfig() {
-	//TODO
-}
-
 func (am *aquareaMQTT) handleSubscription(mclient mqtt.Client, msg mqtt.Message) {
 	topicPieces := strings.Split(msg.Topic(), "/")
 	if len(topicPieces) > 3 {
@@ -76,12 +71,8 @@ func (am *aquareaMQTT) handleSubscription(mclient mqtt.Client, msg mqtt.Message)
 }
 
 func (am *aquareaMQTT) publish(data map[string]string) {
-	deviceID := data["EnduserID"]
-	delete(data, "EnduserID")
-
 	for key, value := range data {
-		topic := fmt.Sprintf("aquarea/%s/%s", deviceID, key)
-		token := am.mqttClient.Publish(topic, byte(0), true, value)
+		token := am.mqttClient.Publish(key, byte(0), true, value)
 		if token.Wait() && token.Error() != nil {
 			fmt.Printf("Fail to publish, %v", token.Error())
 		}

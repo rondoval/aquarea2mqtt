@@ -12,7 +12,6 @@ func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON, shiesuahruefutohkun
 		return nil, err
 	}
 	deviceStatus := make(map[string]string)
-	deviceStatus["EnduserID"] = user.Gwid
 
 	for key, val := range r.StatusDataInfo {
 		name := key
@@ -26,7 +25,7 @@ func (aq aquarea) parseDeviceStatus(user aquareaEndUserJSON, shiesuahruefutohkun
 		case "simple-value":
 			value = val.Value
 		}
-		deviceStatus[fmt.Sprintf("state/%s", name)] = value
+		deviceStatus[fmt.Sprintf("aquarea/%s/state/%s", user.Gwid, name)] = value
 
 	}
 	return deviceStatus, err

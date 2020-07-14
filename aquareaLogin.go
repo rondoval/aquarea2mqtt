@@ -23,7 +23,41 @@ func (aq *aquarea) aquareaSetup() bool {
 		log.Println(err)
 		return false
 	}
+
+	aq.aquareaInitialFetch()
+
 	return true
+}
+
+// first fetch of data and Home Assistant discovery
+func (aq *aquarea) aquareaInitialFetch() {
+	// populate internal data by feeding sub pages
+	for _, user := range aq.usersMap {
+		// Get settings from the device
+		shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
+		if err != nil {
+			continue
+		}
+
+		settings, err := aq.getDeviceSettings(user, shiesuahruefutohkun)
+		if err != nil {
+			log.Println(err)
+		} else {
+			// send HA configuration
+			haConfig := aq.encodeSwitches(settings, user)
+			aq.dataChannel <- haConfig
+		}
+
+		_, err = aq.parseDeviceStatus(user, shiesuahruefutohkun)
+		if err != nil {
+			log.Println(err)
+		}
+
+		_, err = aq.getDeviceLogInformation(user, shiesuahruefutohkun)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func (aq *aquarea) aquareaLogin() error {

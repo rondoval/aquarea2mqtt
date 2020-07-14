@@ -17,7 +17,7 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 	}
 	if len(aq.aquareaSettings.SettingsBackgroundData) == 0 {
 		log.Println("Background data not received yet")
-		//TODO should we cache the request?
+		// should not normally happen - we'll initialize this after log in, before main loop
 		return nil
 	}
 
@@ -77,7 +77,6 @@ func (aq *aquarea) getDeviceSettings(user aquareaEndUserJSON, shiesuahruefutohku
 	}
 
 	settings := make(map[string]string)
-	settings["EnduserID"] = user.Gwid
 
 	for key, val := range aq.aquareaSettings.SettingDataInfo {
 		if !strings.Contains(key, "user") {
@@ -98,10 +97,16 @@ func (aq *aquarea) getDeviceSettings(user aquareaEndUserJSON, shiesuahruefutohku
 
 					// post possible values to a subtopic
 					var allOptions string
+					isFirst := true
 					for _, option := range translation.Values {
-						allOptions += aq.dictionaryWebUI[option] + "\n"
+						if !isFirst {
+							allOptions += "\n"
+						} else {
+							isFirst = false
+						}
+						allOptions += aq.dictionaryWebUI[option]
 					}
-					settings[fmt.Sprintf("settings/%s/options", translation.Name)] = allOptions
+					settings[fmt.Sprintf("aquarea/%s/settings/%s/options", user.Gwid, translation.Name)] = allOptions
 				case "placeholder":
 					i, _ := strconv.ParseInt(val.SelectedValue, 0, 16)
 					if !strings.Contains(translation.Name, "HolidayMode") {
@@ -114,7 +119,7 @@ func (aq *aquarea) getDeviceSettings(user aquareaEndUserJSON, shiesuahruefutohku
 				// not used in user settings, handling not correct
 				value = val.Placeholder // + val.Params
 			}
-			settings[fmt.Sprintf("settings/%s", translation.Name)] = value
+			settings[fmt.Sprintf("aquarea/%s/settings/%s", user.Gwid, translation.Name)] = value
 		} else {
 			log.Printf("No metadata in translation.json for: %s", key)
 		}
