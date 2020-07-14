@@ -52,10 +52,14 @@ func (aq *aquarea) aquareaInitialFetch() {
 		if err != nil {
 			log.Println(err)
 		}
+		// not using it for Home Assistant setup - at least for now
 
-		_, err = aq.getDeviceLogInformation(user, shiesuahruefutohkun)
+		settings, err = aq.getDeviceLogInformation(user, shiesuahruefutohkun)
 		if err != nil {
 			log.Println(err)
+		} else {
+			haConfig := aq.encodeSensors(settings, user)
+			aq.dataChannel <- haConfig
 		}
 	}
 }
