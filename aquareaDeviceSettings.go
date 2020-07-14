@@ -32,7 +32,7 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 		cmd.value = functionInfo.reverseValues[cmd.value]
 
 	case "placeholder":
-		i, _ := strconv.ParseInt(cmd.value, 0, 10)
+		i, _ := strconv.ParseInt(cmd.value, 10, 16)
 		if !strings.Contains(cmd.setting, "HolidayMode") {
 			// may be not true for all values...
 			i += 128
