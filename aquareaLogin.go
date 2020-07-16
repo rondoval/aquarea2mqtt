@@ -139,7 +139,8 @@ func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 	if err != nil {
 		return err
 	}
-	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionStatus", nil)
+
+	body, err := aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionSetting", nil)
 	if err != nil {
 		return err
 	}
@@ -148,7 +149,14 @@ func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 		return err
 	}
 
-	body, err = aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionSetting", nil)
+	// create reverse dictionary - required for changing settings
+	// reverse dictionary is needed for functionSertting page only
+	aq.reverseDictionaryWebUI = make(map[string]string)
+	for k, v := range aq.dictionaryWebUI {
+		aq.reverseDictionaryWebUI[v] = k
+	}
+
+	body, err = aq.httpPost(aq.AquareaServiceCloudURL+"installer/functionStatus", nil)
 	if err != nil {
 		return err
 	}
@@ -164,12 +172,6 @@ func (aq *aquarea) getDictionary(user aquareaEndUserJSON) error {
 	err = aq.extractDictionary(body)
 	if err != nil {
 		return err
-	}
-
-	// create reverse dictionary - required for changing settings
-	aq.reverseDictionaryWebUI = make(map[string]string)
-	for k, v := range aq.dictionaryWebUI {
-		aq.reverseDictionaryWebUI[v] = k
 	}
 
 	err = aq.extractLogItems(body)

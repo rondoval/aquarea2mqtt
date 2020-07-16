@@ -37,7 +37,7 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 			// may be not true for all values...
 			i += 128
 		}
-		cmd.value = "0x" + strconv.FormatInt(i, 16)
+		cmd.value = "0x" + strings.ToUpper(strconv.FormatInt(i, 16))
 	}
 
 	user := aq.usersMap[cmd.deviceID]
