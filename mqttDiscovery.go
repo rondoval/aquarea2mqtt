@@ -36,6 +36,22 @@ type mqttSensor struct {
 	} `json:"device"`
 }
 
+type mqttBinarySensor struct {
+	Name        string `json:"name,omitempty"`
+	StateTopic  string `json:"state_topic"`
+	DeviceClass string `json:"device_class,omitempty"`
+	ForceUpdate bool   `json:"force_update,omitempty"`
+	PayloadOff  string `json:"payload_off,omitempty"`
+	PayloadOn   string `json:"payload_on,omitempty"`
+	UniqueID    string `json:"unique_id,omitempty"`
+	Device      struct {
+		Manufacturer string `json:"manufacturer,omitempty"`
+		Model        string `json:"model,omitempty"`
+		Name         string `json:"name,omitempty"`
+		Identifiers  string `json:"identifiers,omitempty"`
+	} `json:"device"`
+}
+
 func (aq *aquarea) encodeSwitches(topics map[string]string, user aquareaEndUserJSON) map[string]string {
 	config := make(map[string]string)
 
@@ -55,7 +71,7 @@ func (aq *aquarea) encodeSwitches(topics map[string]string, user aquareaEndUserJ
 			} else if len(values) > 2 {
 				// TODO multi (more than 2) state switch
 				// TODO numeric value settings
-				// might not be possible
+				// seems to be not possible currently: a Helper and Automation is required
 			}
 		}
 	}
@@ -67,18 +83,47 @@ func (aq *aquarea) encodeSwitches(topics map[string]string, user aquareaEndUserJ
 
 func (aq *aquarea) encodeSensors(topics map[string]string, user aquareaEndUserJSON) map[string]string {
 	config := make(map[string]string)
-
+	topicsNoDuplicates := make(map[string]string)
 	for k, v := range topics {
-		if strings.Contains(k, "/log/") && strings.HasSuffix(k, "/unit") {
-			topicSplit := strings.Split(k, "/")
-			name := topicSplit[3]
-			deviceID := topicSplit[1]
+		if !strings.Contains(k, "/log/") {
+			continue
+		}
+		if strings.HasSuffix(k, "/unit") {
+			topicsNoDuplicates[k] = v
+		} else {
+			if _, ok := topics[k+"/unit"]; !ok {
+				topicsNoDuplicates[k] = v
+			}
+		}
+	}
+
+	for k, v := range topicsNoDuplicates {
+		topicSplit := strings.Split(k, "/")
+		name := topicSplit[3]
+		deviceID := topicSplit[1]
+		if strings.HasSuffix(k, "/unit") {
 
 			// v contains the unit
 			haTopic, haData, err := encodeSensor(name, deviceID, strings.TrimSuffix(k, "/unit"), v)
 			if err == nil {
 				// send to MQTT
 				config[haTopic] = string(haData)
+			}
+		} else {
+			if v == "On" || v == "Off" {
+				// encode as binary sensor
+				haTopic, haData, err := encodeBinarySensor(strings.TrimSuffix(name, "(Actual)"), deviceID, k)
+				if err == nil {
+					// send to MQTT
+					config[haTopic] = string(haData)
+				}
+			} else {
+				// encode as sensor
+				haTopic, haData, err := encodeSensor(name, deviceID, k, "")
+				if err == nil {
+					// send to MQTT
+					config[haTopic] = string(haData)
+				}
 			}
 		}
 	}
@@ -87,6 +132,26 @@ func (aq *aquarea) encodeSensors(topics map[string]string, user aquareaEndUserJS
 
 	//aquarea/B25xxx/log
 	//homeassistant/sensor/B2500423423/Operation/config
+}
+
+func encodeBinarySensor(name, id, stateTopic string) (string, []byte, error) {
+	var s mqttBinarySensor
+	s.Name = name
+	s.StateTopic = stateTopic
+	s.PayloadOn = "On"
+	s.PayloadOff = "Off"
+	s.UniqueID = id + "_" + name
+	s.Device.Manufacturer = "Panasonic"
+	s.Device.Model = "Aquarea"
+	s.Device.Identifiers = id
+	s.Device.Name = "Aquarea " + id
+
+	//	DeviceClass       string `json:"device_class,omitempty"`
+	//	ForceUpdate       bool   `json:"force_update,omitempty"`
+	topic := fmt.Sprintf("homeassistant/binary_sensor/%s/%s/config", id, name)
+	data, err := json.Marshal(s)
+
+	return topic, data, err
 }
 
 func encodeSensor(name, id, stateTopic, unit string) (string, []byte, error) {
