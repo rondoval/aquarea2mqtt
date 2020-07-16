@@ -111,19 +111,19 @@
         }
     },
     "function-setting-user-select-008": {
-        "name": "ZoneTargetTemperatureZone1Heat",
+        "name": "Zone1TargetTemperatureHeat",
         "kind": "placeholder"
     },
     "function-setting-user-select-009": {
-        "name": "ZoneTargetTemperatureZone2Heat",
+        "name": "Zone2TargetTemperatureHeat",
         "kind": "placeholder"
     },
     "function-setting-user-select-010": {
-        "name": "ZoneTargetTemperatureZone1Cool",
+        "name": "Zone1TargetTemperatureCool",
         "kind": "placeholder"
     },
     "function-setting-user-select-011": {
-        "name": "ZoneTargetTemperatureZone2Cool",
+        "name": "Zone2TargetTemperatureCool",
         "kind": "placeholder"
     },
     "function-setting-user-select-013": {

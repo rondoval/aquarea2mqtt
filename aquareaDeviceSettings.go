@@ -32,12 +32,12 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 		cmd.value = functionInfo.reverseValues[cmd.value]
 
 	case "placeholder":
-		i, _ := strconv.ParseInt(cmd.value, 10, 16)
+		i, _ := strconv.ParseInt(cmd.value, 0, 16)
 		if !strings.Contains(cmd.setting, "HolidayMode") {
 			// may be not true for all values...
 			i += 128
 		}
-		cmd.value = "0x" + strings.ToUpper(strconv.FormatInt(i, 16))
+		cmd.value = fmt.Sprintf("0x%X", uint8(i))
 	}
 
 	user := aq.usersMap[cmd.deviceID]
@@ -59,7 +59,7 @@ func (aq *aquarea) sendSetting(cmd aquareaCommand) error {
 
 	_, err = aq.httpPost(aq.AquareaServiceCloudURL+"/installer/api/function/setting/user/set", values)
 	//TODO parse output json, check error code
-	//TODO usec check api to confirm settings are applied
+	//TODO usec check api to confirm settings are applied before returning
 	return err
 }
 
@@ -113,7 +113,7 @@ func (aq *aquarea) getDeviceSettings(user aquareaEndUserJSON, shiesuahruefutohku
 						// might be not true for all values...
 						i -= 128
 					}
-					value = strconv.FormatInt(i, 10)
+					value = strconv.FormatInt(int64(int8(i)), 10) // this is to get two's complement negatives right
 				}
 			case "placeholder-text":
 				// not used in user settings, handling not correct

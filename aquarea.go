@@ -29,6 +29,12 @@ type aquareaFunctionDescription struct {
 	reverseValues map[string]string
 }
 
+type aquareaLogItem struct {
+	Name   string
+	Unit   string
+	Values map[string]string
+}
+
 type aquarea struct {
 	AquareaServiceCloudURL      string
 	AquareaServiceCloudLogin    string
@@ -42,7 +48,7 @@ type aquarea struct {
 	usersMap               map[string]aquareaEndUserJSON          // list of users (devices) linked to an account
 	translation            map[string]*aquareaFunctionDescription // function name meaning
 	reverseTranslation     map[string]string                      // map of friendly names to Aquarea meaningless ones
-	logItems               []string                               // table with names of log items (statistics view)
+	logItems               []aquareaLogItem                       // table with names of log items (statistics view)
 	aquareaSettings        aquareaFunctionSettingGetJSON          // needs be cached, contains info relevant for changing settings
 }
 

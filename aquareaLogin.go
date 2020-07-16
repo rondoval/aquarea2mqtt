@@ -194,12 +194,38 @@ func (aq *aquarea) extractLogItems(body []byte) error {
 	logItemsRegexp := regexp.MustCompile(`var logItems = \$\.parseJSON\('(.+)'\);`)
 	logItemsJSON := logItemsRegexp.FindStringSubmatch(string(body))
 	var err error
+	var items []string
 	if len(logItemsJSON) > 0 {
-		err = json.Unmarshal([]byte(logItemsJSON[1]), &aq.logItems)
+		err = json.Unmarshal([]byte(logItemsJSON[1]), &items)
 	}
 
-	for key, val := range aq.logItems {
-		aq.logItems[key] = strings.ReplaceAll(aq.dictionaryWebUI[val], "/", "\\")
+	unitRegexp := regexp.MustCompile(`(.+)\[(.+)\]`)               // extract unit from name
+	unitMultiChoiceRegexp := regexp.MustCompile(`(\d+):([^,]+),?`) // extract multi choice values
+	removeBracketsRegexp := regexp.MustCompile(`\(.+\)`)           // remove everything in brackets
+	aq.logItems = make([]aquareaLogItem, len(items))
+
+	for key, val := range items {
+		val = aq.dictionaryWebUI[val]
+		val = strings.ReplaceAll(val, "(Actual)", "Actual")
+		val = strings.ReplaceAll(val, "(Target)", "Target")
+		val = removeBracketsRegexp.ReplaceAllString(val, "")
+
+		split := unitRegexp.FindStringSubmatch(val)
+
+		name := strings.Title(split[1])
+		name = strings.ReplaceAll(name, ":", "")
+		name = strings.ReplaceAll(name, " ", "")
+		aq.logItems[key].Name = name
+
+		subs := unitMultiChoiceRegexp.FindAllStringSubmatch(split[2], -1)
+		aq.logItems[key].Values = make(map[string]string)
+		if len(subs) > 0 {
+			for _, m := range subs {
+				aq.logItems[key].Values[m[1]] = m[2]
+			}
+		} else {
+			aq.logItems[key].Unit = split[2] // unit of the value, extracted from name
+		}
 	}
 	return err
 }

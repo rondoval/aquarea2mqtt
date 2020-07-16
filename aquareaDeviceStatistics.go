@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -55,26 +54,18 @@ func (aq *aquarea) getDeviceLogInformation(user aquareaEndUserJSON, shiesuahruef
 		}
 	}
 
-	unitRegexp := regexp.MustCompile(`(.+)\[(.+)\]`)               // extract unit from name
-	unitMultiChoiceRegexp := regexp.MustCompile(`(\d+):([^,]+),?`) // extract multi choice values
-
 	stats := make(map[string]string)
 	for i, val := range deviceLog[lastKey] {
-		split := unitRegexp.FindStringSubmatch(aq.logItems[i])
+		topic := fmt.Sprintf("aquarea/%s/log/", user.Gwid) + aq.logItems[i].Name
 
-		topic := fmt.Sprintf("aquarea/%s/log/", user.Gwid) + strings.ReplaceAll(strings.Title(split[1]), " ", "")
-
-		subs := unitMultiChoiceRegexp.FindAllStringSubmatch(split[2], -1)
-		if len(subs) > 0 {
-			for _, m := range subs {
-				if m[1] == val {
-					val = m[2]
-					break
-				}
-			}
-		} else {
-			stats[topic+"/unit"] = split[2] // unit of the value, extracted from name
+		if aq.logItems[i].Unit != "" {
+			stats[topic+"/unit"] = aq.logItems[i].Unit // unit of the value, extracted from name
 		}
+
+		if x, ok := aq.logItems[i].Values[val]; ok {
+			val = x
+		}
+
 		stats[topic] = val
 	}
 	stats[fmt.Sprintf("aquarea/%s/log/Timestamp", user.Gwid)] = strconv.FormatInt(lastKey, 10)

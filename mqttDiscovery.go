@@ -77,7 +77,7 @@ func (aq *aquarea) encodeSwitches(topics map[string]string, user aquareaEndUserJ
 	}
 
 	return config
-	//aquarea/B25xxx/settings
+	//aquarea/B25xxx/settings/Operation
 	//homeassistant/switch/B2500423423/Operation/config
 }
 
@@ -112,7 +112,7 @@ func (aq *aquarea) encodeSensors(topics map[string]string, user aquareaEndUserJS
 		} else {
 			if v == "On" || v == "Off" {
 				// encode as binary sensor
-				haTopic, haData, err := encodeBinarySensor(strings.TrimSuffix(name, "(Actual)"), deviceID, k)
+				haTopic, haData, err := encodeBinarySensor(name, deviceID, k)
 				if err == nil {
 					// send to MQTT
 					config[haTopic] = string(haData)
