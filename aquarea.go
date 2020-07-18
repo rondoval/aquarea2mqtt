@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -53,7 +55,8 @@ type aquarea struct {
 	aquareaSettings        aquareaFunctionSettingGetJSON          // needs be cached, contains info relevant for changing settings
 }
 
-func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand, statusChannel chan bool) {
+func aquareaHandler(ctx context.Context, wg *sync.WaitGroup, config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand, statusChannel chan bool) {
+	defer wg.Done()
 	log.Println("Starting Aquarea Service Cloud handler")
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
@@ -94,9 +97,10 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 			aquareaInstance.feedDataFromAquarea()
 		case command := <-commandChannel:
 			aquareaInstance.sendSetting(command)
+		case <-ctx.Done():
+			return
 		}
 	}
-
 }
 
 func (aq *aquarea) loadTranslations(filename string) {

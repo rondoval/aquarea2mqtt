@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -14,7 +16,8 @@ type aquareaMQTT struct {
 	commandChannel chan aquareaCommand
 }
 
-func mqttHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand, statusChannel chan bool) {
+func mqttHandler(ctx context.Context, wg *sync.WaitGroup, config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand, statusChannel chan bool) {
+	defer wg.Done()
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -24,6 +27,8 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 	var mqttInstance aquareaMQTT
 	mqttInstance.commandChannel = commandChannel
 	mqttInstance.makeMQTTConn(config.MqttServer, config.MqttPort, config.MqttLogin, config.MqttPass, config.MqttClientID, mqttKeepalive)
+	defer mqttInstance.mqttClient.Disconnect(2000)
+	defer mqttInstance.setStatus(false)
 
 	for {
 		select {
@@ -31,6 +36,8 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 			mqttInstance.publish(dataToPublish)
 		case online := <-statusChannel:
 			mqttInstance.setStatus(online)
+		case <-ctx.Done():
+			return
 		}
 	}
 }

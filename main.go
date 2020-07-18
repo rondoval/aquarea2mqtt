@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
+	"os/signal"
 	"runtime"
+	"sync"
+	"syscall"
 )
 
 const configFileOther = "/data/options.json"
@@ -55,9 +60,18 @@ func main() {
 	commandChannel := make(chan aquareaCommand, 10)
 	statusChannel := make(chan bool) // offline-online
 
-	go mqttHandler(config, dataChannel, commandChannel, statusChannel)
-	go aquareaHandler(config, dataChannel, commandChannel, statusChannel)
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	for {
-	}
+	go mqttHandler(ctx, &wg, config, dataChannel, commandChannel, statusChannel)
+	go aquareaHandler(ctx, &wg, config, dataChannel, commandChannel, statusChannel)
+
+	termChan := make(chan os.Signal)
+	signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
+	<-termChan
+	log.Println("Shutting down")
+	cancel()
+	wg.Wait()
+	log.Println("Shut down complete")
 }
