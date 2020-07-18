@@ -53,9 +53,10 @@ func main() {
 
 	dataChannel := make(chan map[string]string, 10)
 	commandChannel := make(chan aquareaCommand, 10)
+	statusChannel := make(chan bool) // offline-online
 
-	go mqttHandler(config, dataChannel, commandChannel)
-	go aquareaHandler(config, dataChannel, commandChannel)
+	go mqttHandler(config, dataChannel, commandChannel, statusChannel)
+	go aquareaHandler(config, dataChannel, commandChannel, statusChannel)
 
 	for {
 	}

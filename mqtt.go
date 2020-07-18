@@ -14,7 +14,7 @@ type aquareaMQTT struct {
 	commandChannel chan aquareaCommand
 }
 
-func mqttHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
+func mqttHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand, statusChannel chan bool) {
 	log.Println("Starting MQTT handler")
 	mqttKeepalive, err := time.ParseDuration(config.MqttKeepalive)
 	if err != nil {
@@ -29,6 +29,8 @@ func mqttHandler(config configType, dataChannel chan map[string]string, commandC
 		select {
 		case dataToPublish := <-dataChannel:
 			mqttInstance.publish(dataToPublish)
+		case online := <-statusChannel:
+			mqttInstance.setStatus(online)
 		}
 	}
 }
@@ -49,6 +51,8 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 		c.Subscribe("aquarea/+/settings/+/set", 2, am.handleSubscription)
 	})
 
+	opts.SetWill("aquarea/status", "offline", byte(0), true)
+
 	// connect to broker
 	am.mqttClient = mqtt.NewClient(opts)
 
@@ -57,6 +61,18 @@ func (am *aquareaMQTT) makeMQTTConn(mqttServer string, mqttPort int, mqttLogin, 
 		log.Fatalf("Fail to connect broker, %v", token.Error())
 	}
 	log.Println("MQTT connected")
+
+	am.setStatus(false) // offline till Service Cloud is connected
+}
+
+func (am *aquareaMQTT) setStatus(online bool) {
+	var status string
+	if online {
+		status = "online"
+	} else {
+		status = "offline"
+	}
+	am.mqttClient.Publish("aquarea/status", byte(0), true, status)
 }
 
 func (am *aquareaMQTT) handleSubscription(mclient mqtt.Client, msg mqtt.Message) {

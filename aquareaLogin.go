@@ -130,6 +130,10 @@ func (aq *aquarea) aquareaInstallerHome() error {
 	}
 	err = aq.getDictionary(endUsersList.Endusers[0])
 
+	if err == nil {
+		aq.statusChannel <- true
+	}
+
 	return err
 }
 

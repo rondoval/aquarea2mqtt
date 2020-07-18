@@ -41,6 +41,7 @@ type aquarea struct {
 	AquareaServiceCloudPassword string
 	logSecOffset                int64
 	dataChannel                 chan map[string]string
+	statusChannel               chan bool
 
 	httpClient             http.Client
 	dictionaryWebUI        map[string]string                      // xxxx-yyyy codes translation to messages
@@ -52,7 +53,7 @@ type aquarea struct {
 	aquareaSettings        aquareaFunctionSettingGetJSON          // needs be cached, contains info relevant for changing settings
 }
 
-func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand) {
+func aquareaHandler(config configType, dataChannel chan map[string]string, commandChannel chan aquareaCommand, statusChannel chan bool) {
 	log.Println("Starting Aquarea Service Cloud handler")
 	var aquareaInstance aquarea
 	aquareaInstance.AquareaServiceCloudURL = config.AquareaServiceCloudURL
@@ -60,6 +61,7 @@ func aquareaHandler(config configType, dataChannel chan map[string]string, comma
 	aquareaInstance.AquareaServiceCloudPassword = config.AquareaServiceCloudPassword
 	aquareaInstance.logSecOffset = config.LogSecOffset
 	aquareaInstance.dataChannel = dataChannel
+	aquareaInstance.statusChannel = statusChannel
 	aquareaInstance.usersMap = make(map[string]aquareaEndUserJSON)
 
 	aquareaInstance.loadTranslations(translationFile)
@@ -132,7 +134,9 @@ func (aq *aquarea) feedDataFromAquarea() {
 		// Get settings from the device
 		shiesuahruefutohkun, err := aq.getEndUserShiesuahruefutohkun(user)
 		if err != nil {
+			aq.statusChannel <- false
 			log.Println(err)
+			log.Println("Will attempt to log in again")
 			// try to log in again
 			aq.aquareaSetup()
 			continue

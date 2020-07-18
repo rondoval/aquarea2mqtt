@@ -7,13 +7,14 @@ import (
 )
 
 type mqttSwitch struct {
-	Name         string `json:"name,omitempty"`
-	CommandTopic string `json:"command_topic,omitempty"`
-	StateTopic   string `json:"state_topic,omitempty"`
-	PayloadOn    string `json:"payload_on,omitempty"`
-	PayloadOff   string `json:"payload_off,omitempty"`
-	UniqueID     string `json:"unique_id,omitempty"`
-	Device       struct {
+	Name              string `json:"name,omitempty"`
+	AvailabilityTopic string `json:"availability_topic,omitempty"`
+	CommandTopic      string `json:"command_topic,omitempty"`
+	StateTopic        string `json:"state_topic,omitempty"`
+	PayloadOn         string `json:"payload_on,omitempty"`
+	PayloadOff        string `json:"payload_off,omitempty"`
+	UniqueID          string `json:"unique_id,omitempty"`
+	Device            struct {
 		Manufacturer string `json:"manufacturer,omitempty"`
 		Model        string `json:"model,omitempty"`
 		Name         string `json:"name,omitempty"`
@@ -23,6 +24,7 @@ type mqttSwitch struct {
 
 type mqttSensor struct {
 	Name              string `json:"name,omitempty"`
+	AvailabilityTopic string `json:"availability_topic,omitempty"`
 	StateTopic        string `json:"state_topic"`
 	UnitOfMeasurement string `json:"unit_of_measurement,omitempty"`
 	DeviceClass       string `json:"device_class,omitempty"`
@@ -37,14 +39,15 @@ type mqttSensor struct {
 }
 
 type mqttBinarySensor struct {
-	Name        string `json:"name,omitempty"`
-	StateTopic  string `json:"state_topic"`
-	DeviceClass string `json:"device_class,omitempty"`
-	ForceUpdate bool   `json:"force_update,omitempty"`
-	PayloadOff  string `json:"payload_off,omitempty"`
-	PayloadOn   string `json:"payload_on,omitempty"`
-	UniqueID    string `json:"unique_id,omitempty"`
-	Device      struct {
+	Name              string `json:"name,omitempty"`
+	AvailabilityTopic string `json:"availability_topic,omitempty"`
+	StateTopic        string `json:"state_topic"`
+	DeviceClass       string `json:"device_class,omitempty"`
+	ForceUpdate       bool   `json:"force_update,omitempty"`
+	PayloadOff        string `json:"payload_off,omitempty"`
+	PayloadOn         string `json:"payload_on,omitempty"`
+	UniqueID          string `json:"unique_id,omitempty"`
+	Device            struct {
 		Manufacturer string `json:"manufacturer,omitempty"`
 		Model        string `json:"model,omitempty"`
 		Name         string `json:"name,omitempty"`
@@ -137,6 +140,7 @@ func (aq *aquarea) encodeSensors(topics map[string]string, user aquareaEndUserJS
 func encodeBinarySensor(name, id, stateTopic string) (string, []byte, error) {
 	var s mqttBinarySensor
 	s.Name = name
+	s.AvailabilityTopic = "aquarea/status"
 	s.StateTopic = stateTopic
 	s.PayloadOn = "On"
 	s.PayloadOff = "Off"
@@ -157,6 +161,7 @@ func encodeBinarySensor(name, id, stateTopic string) (string, []byte, error) {
 func encodeSensor(name, id, stateTopic, unit string) (string, []byte, error) {
 	var s mqttSensor
 	s.Name = name
+	s.AvailabilityTopic = "aquarea/status"
 	s.StateTopic = stateTopic
 	s.UnitOfMeasurement = unit
 	s.UniqueID = id + "_" + name
@@ -176,6 +181,7 @@ func encodeSensor(name, id, stateTopic, unit string) (string, []byte, error) {
 func encodeSwitch(name, id, stateTopic string, values []string) (string, []byte, error) {
 	var b mqttSwitch
 	b.Name = name
+	b.AvailabilityTopic = "aquarea/status"
 	b.CommandTopic = stateTopic + "/set"
 	b.StateTopic = stateTopic
 	b.Device.Manufacturer = "Panasonic"
